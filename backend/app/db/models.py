@@ -89,7 +89,17 @@ class Alert(Base):
     )
     alert_rule_name: Mapped[str] = mapped_column(String(200), index=True)
     severity: Mapped[str] = mapped_column(String(50), index=True)
+    description: Mapped[str] = mapped_column(Text, server_default=text("''"), nullable=False)
+    related_username: Mapped[str | None] = mapped_column(String(255), index=True)
+    related_asset: Mapped[str | None] = mapped_column(String(255))
+    related_event_ids: Mapped[list[int]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
     mitre_technique_id: Mapped[str | None] = mapped_column(String(50))
+    first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     normalized_message: Mapped[str] = mapped_column(Text)
 
     normalized_event: Mapped[NormalizedEvent] = relationship(back_populates="alerts")

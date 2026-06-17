@@ -54,7 +54,13 @@ def test_breach_analytics_columns_are_available() -> None:
             "created_at",
             "alert_rule_name",
             "severity",
+            "description",
+            "related_username",
+            "related_asset",
+            "related_event_ids",
             "mitre_technique_id",
+            "first_seen",
+            "last_seen",
             "normalized_message",
         },
         "incidents": {
@@ -90,4 +96,5 @@ def test_breach_analytics_columns_are_available() -> None:
 def test_jsonb_columns_store_flexible_payloads_and_evidence() -> None:
     assert isinstance(Base.metadata.tables["raw_events"].c.raw_payload.type, JSONB)
     assert isinstance(Base.metadata.tables["incidents"].c.affected_assets.type, JSONB)
+    assert isinstance(Base.metadata.tables["alerts"].c.related_event_ids.type, JSONB)
     assert isinstance(Base.metadata.tables["llm_summaries"].c.evidence_event_ids.type, JSONB)
