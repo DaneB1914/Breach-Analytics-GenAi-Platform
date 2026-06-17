@@ -1,0 +1,9 @@
+vpn_event_id,time,user,client_ip,assigned_private_ip,device_name,action,result,session_id,bytes_in,bytes_out
+vpn-2001,2026-06-16T08:13:18Z,jamie.lee,198.51.100.24,10.8.2.44,LAPTOP-JAMIE-01,connect,success,vpn-jamie-4462,22891,18420
+vpn-2002,2026-06-16T08:15:03Z,svc-reporting,10.20.5.15,10.8.9.12,FILE-SERVER-02,service_tunnel_connect,success,vpn-svc-9184,5102,4988
+vpn-2003,2026-06-16T08:53:22Z,alex.morgan,203.0.113.77,10.8.14.23,LAPTOP-ALEX-01,connect,success,vpn-alex-7731,31442,22910
+vpn-2004,2026-06-16T08:54:06Z,alex.morgan,203.0.113.77,10.8.14.23,LAPTOP-ALEX-01,posture_check,passed,vpn-alex-7731,3891,1920
+vpn-2005,2026-06-16T09:23:41Z,alex.morgan,203.0.113.77,10.8.14.23,LAPTOP-ALEX-01,data_transfer_update,success,vpn-alex-7731,8012204,214987633
+vpn-2006,2026-06-16T09:40:27Z,jamie.lee,198.51.100.24,10.8.2.44,LAPTOP-JAMIE-01,data_transfer_update,success,vpn-jamie-4462,148002,128771
+vpn-2007,2026-06-16T09:48:19Z,alex.morgan,203.0.113.77,10.8.14.23,LAPTOP-ALEX-01,disconnect,success,vpn-alex-7731,9021880,382610944
+vpn-2008,2026-06-16T10:05:33Z,svc-reporting,10.20.5.15,10.8.9.12,FILE-SERVER-02,service_tunnel_disconnect,success,vpn-svc-9184,21842,20581

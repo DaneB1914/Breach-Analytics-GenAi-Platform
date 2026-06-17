@@ -1,0 +1,12 @@
+request_id,timestamp,user,source_ip,asset,http_method,path,status_code,response_bytes,records_returned,user_agent,request_category
+req-4001,2026-06-16T08:19:33Z,jamie.lee,198.51.100.24,API-GATEWAY-01,GET,/api/v1/profile,200,2215,1,CorpPortal/5.4,normal_profile
+req-4002,2026-06-16T08:23:57Z,jamie.lee,198.51.100.24,API-GATEWAY-01,GET,/api/v1/reports/weekly,200,88122,25,CorpPortal/5.4,normal_report
+req-4003,2026-06-16T08:24:40Z,svc-reporting,10.20.5.15,API-GATEWAY-01,GET,/api/v1/reports/export/daily,200,84219,42,ReportingJob/2.1,scheduled_report
+req-4004,2026-06-16T09:18:58Z,alex.morgan,10.8.14.23,API-GATEWAY-01,GET,/api/v1/admin/users,200,501284,1250,Python-requests/2.32,admin_query
+req-4005,2026-06-16T09:21:12Z,alex.morgan,10.8.14.23,API-GATEWAY-01,GET,/api/v1/customers/export?region=all,200,93218422,48320,Python-requests/2.32,bulk_export
+req-4006,2026-06-16T09:24:08Z,alex.morgan,10.8.14.23,API-GATEWAY-01,GET,/api/v1/files/archive?share=finance,200,185772901,12031,Python-requests/2.32,file_archive_download
+req-4007,2026-06-16T09:26:44Z,alex.morgan,10.8.14.23,API-GATEWAY-01,GET,/api/v1/tokens,403,1190,0,Python-requests/2.32,token_access_denied
+req-4008,2026-06-16T09:28:09Z,alex.morgan,10.8.14.23,API-GATEWAY-01,POST,/api/v1/tokens/service,201,3148,1,Python-requests/2.32,service_token_created
+req-4009,2026-06-16T09:31:36Z,alex.morgan,10.8.14.23,API-GATEWAY-01,GET,/api/v1/customers/export?format=csv,200,94000112,48510,Python-requests/2.32,bulk_export
+req-4010,2026-06-16T09:36:22Z,jamie.lee,198.51.100.24,API-GATEWAY-01,GET,/api/v1/reports/weekly,200,87980,25,CorpPortal/5.4,normal_report
+req-4011,2026-06-16T09:43:01Z,svc-reporting,10.20.5.15,API-GATEWAY-01,POST,/api/v1/reports/refresh,202,1604,1,ReportingJob/2.1,scheduled_report
