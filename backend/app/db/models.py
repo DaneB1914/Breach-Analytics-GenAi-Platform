@@ -125,12 +125,17 @@ class Incident(Base):
     )
     status: Mapped[str] = mapped_column(String(50), server_default=text("'open'"), index=True)
     severity: Mapped[str | None] = mapped_column(String(50))
+    title: Mapped[str] = mapped_column(String(255), server_default=text("'Untitled incident'"), nullable=False)
+    suspected_attack_path: Mapped[str | None] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     affected_user: Mapped[str | None] = mapped_column(String(255), index=True)
     affected_assets: Mapped[list[str]] = mapped_column(
         JSONB,
         server_default=text("'[]'::jsonb"),
         nullable=False,
     )
+    first_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     alerts: Mapped[list[Alert]] = relationship(back_populates="incident")
     event_links: Mapped[list[IncidentEvent]] = relationship(

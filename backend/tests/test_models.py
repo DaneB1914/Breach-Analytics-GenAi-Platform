@@ -69,8 +69,13 @@ def test_breach_analytics_columns_are_available() -> None:
             "updated_at",
             "status",
             "severity",
+            "title",
+            "suspected_attack_path",
+            "description",
             "affected_user",
             "affected_assets",
+            "first_seen",
+            "last_seen",
         },
         "incident_events": {
             "id",

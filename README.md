@@ -2,7 +2,7 @@
 
 A portfolio project for a breach analytics AI/GenAI contractor role. The planned platform will ingest fake security logs, normalize them through ETL, store them in PostgreSQL, detect suspicious activity, group alerts into incidents, and optionally generate auditable incident summaries with an LLM.
 
-## Current Phase: Detection Engine
+## Current Phase: Incident Correlation
 
 This project currently includes:
 
@@ -19,8 +19,9 @@ This project currently includes:
 - Sample fake breach data
 - ETL pipeline that loads `RawEvent` and `NormalizedEvent` records
 - Detection engine that creates `Alert` records from normalized events
+- Incident correlation engine that groups alerts into `Incident` records
 
-Future phases will add incident grouping, optional LLM summaries, and the Next.js frontend.
+Future phases will add optional LLM summaries and the Next.js frontend.
 
 ## Project Structure
 
@@ -52,16 +53,23 @@ breach-analytics-genai/
         normalize.py
         run.py
         schemas.py
+      incidents/
+        correlation.py
+        engine.py
+        run.py
+        schemas.py
       main.py
     migrations/
       versions/
         202606150001_create_breach_analytics_tables.py
         202606170001_add_alert_detection_metadata.py
+        202606170002_add_incident_correlation_metadata.py
     tests/
       test_config.py
       test_detections.py
       test_etl_normalization.py
       test_health.py
+      test_incidents.py
       test_models.py
     requirements.txt
   data/
@@ -254,6 +262,86 @@ docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT alert_
 
 Running detections again should skip alerts that already exist for the same rule and related event IDs.
 
+## Incident Correlation
+
+The incident correlation engine reads unassigned `alerts`, groups related alerts into investigations, creates `incidents`, links alerts back to those incidents, and stores supporting normalized event IDs in `incident_events`.
+
+Correlation considers:
+
+- Related username
+- Related asset
+- A 24-hour time window
+- Highest related alert severity
+- Overlapping or combined related event IDs
+
+Each incident stores:
+
+- Title
+- Severity
+- Status
+- Suspected attack path
+- Affected user
+- Affected assets
+- First seen and last seen timestamps
+- Description
+
+This phase does not add API endpoints, frontend screens, or LLM calls.
+
+### Run Incident Correlation Locally
+
+Run migrations, ETL, detections, and then incident correlation:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up -d db
+
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m alembic upgrade head
+python -m app.etl.run --data-dir ..\data
+python -m app.detections.run
+python -m app.incidents.run
+python -m pytest
+```
+
+Confirm incidents were inserted and linked:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT COUNT(*) AS incidents FROM incidents;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT id, title, severity, status, affected_user, affected_assets, suspected_attack_path FROM incidents ORDER BY id;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT incident_id, COUNT(*) AS alert_count FROM alerts WHERE incident_id IS NOT NULL GROUP BY incident_id ORDER BY incident_id;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT incident_id, COUNT(*) AS evidence_events FROM incident_events GROUP BY incident_id ORDER BY incident_id;"
+```
+
+### Run Incident Correlation With Docker
+
+Run the full workflow inside Docker:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
+docker compose exec backend alembic upgrade head
+docker compose exec backend python -m app.etl.run --data-dir /data
+docker compose exec backend python -m app.detections.run
+docker compose exec backend python -m app.incidents.run
+docker compose exec backend python -m pytest
+```
+
+Confirm incidents were inserted and linked:
+
+```powershell
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT COUNT(*) AS incidents FROM incidents;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT id, title, severity, status, affected_user, affected_assets, suspected_attack_path FROM incidents ORDER BY id;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT incident_id, COUNT(*) AS alert_count FROM alerts WHERE incident_id IS NOT NULL GROUP BY incident_id ORDER BY incident_id;"
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT incident_id, COUNT(*) AS evidence_events FROM incident_events GROUP BY incident_id ORDER BY incident_id;"
+```
+
+Running incident correlation again should not create duplicate incidents because previously linked alerts already have `incident_id` values.
+
 ## Docker Setup
 
 Prerequisites:
@@ -300,7 +388,7 @@ docker compose down -v
 
 ## Database Migrations
 
-Migrations currently create the core breach analytics schema and add alert metadata used by the detection engine. They do not add incident grouping logic, frontend screens, or LLM calls yet.
+Migrations currently create the core breach analytics schema, add alert metadata used by the detection engine, and add incident metadata used by correlation. They do not add frontend screens or LLM calls yet.
 
 The initial Alembic migration creates:
 
@@ -312,6 +400,7 @@ The initial Alembic migration creates:
 - `llm_summaries`
 
 The second migration adds detection metadata columns to `alerts`.
+The third migration adds correlation metadata columns to `incidents`.
 
 Run the migration through Docker from the project root:
 
