@@ -2,7 +2,7 @@
 
 A portfolio project for a breach analytics AI/GenAI contractor role. The planned platform will ingest fake security logs, normalize them through ETL, store them in PostgreSQL, detect suspicious activity, group alerts into incidents, and optionally generate auditable incident summaries with an LLM.
 
-## Current Phase: Incident Correlation
+## Current Phase: API Endpoints
 
 This project currently includes:
 
@@ -20,6 +20,7 @@ This project currently includes:
 - ETL pipeline that loads `RawEvent` and `NormalizedEvent` records
 - Detection engine that creates `Alert` records from normalized events
 - Incident correlation engine that groups alerts into `Incident` records
+- REST API endpoints for events, alerts, incidents, and backend workflow runs
 
 Future phases will add optional LLM summaries and the Next.js frontend.
 
@@ -34,8 +35,14 @@ breach-analytics-genai/
     alembic.ini
     app/
       api/
+        dependencies.py
+        schemas.py
         routes/
+          alerts.py
+          events.py
           health.py
+          incidents.py
+          workflow.py
       core/
         config.py
       db/
@@ -65,6 +72,7 @@ breach-analytics-genai/
         202606170001_add_alert_detection_metadata.py
         202606170002_add_incident_correlation_metadata.py
     tests/
+      test_api_endpoints.py
       test_config.py
       test_detections.py
       test_etl_normalization.py
@@ -341,6 +349,72 @@ docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT incide
 ```
 
 Running incident correlation again should not create duplicate incidents because previously linked alerts already have `incident_id` values.
+
+## API Endpoints
+
+The FastAPI backend exposes read endpoints for normalized events, alerts, and incidents, plus workflow endpoints that run the backend pipeline.
+
+Available endpoints:
+
+- `GET /health`
+- `GET /events`
+- `GET /events/{event_id}`
+- `GET /alerts`
+- `GET /alerts/{alert_id}`
+- `GET /incidents`
+- `GET /incidents/{incident_id}`
+- `POST /workflow/etl`
+- `POST /workflow/detections`
+- `POST /workflow/incidents`
+- `POST /workflow/run-all`
+
+Useful filters:
+
+- `/events`: `skip`, `limit`, `severity`, `username`, `source_system`, `event_type`, `start_date`, `end_date`
+- `/alerts`: `skip`, `limit`, `severity`, `related_username`, `alert_rule_name`, `incident_id`
+- `/incidents`: `skip`, `limit`, `severity`, `status`, `affected_user`, `start_date`, `end_date`
+
+Open the interactive API docs:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Run Full Workflow Through The API
+
+Start the app, apply migrations, then trigger the workflow through FastAPI:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
+docker compose exec backend alembic upgrade head
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
+```
+
+You can also run each step separately:
+
+```powershell
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/etl
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/detections
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/incidents
+```
+
+Browse data through the API:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod "http://127.0.0.1:8000/events?username=alex.morgan&limit=5"
+Invoke-RestMethod "http://127.0.0.1:8000/alerts?severity=high"
+Invoke-RestMethod "http://127.0.0.1:8000/incidents?status=open"
+Invoke-RestMethod http://127.0.0.1:8000/incidents/1
+```
+
+Run API tests inside Docker:
+
+```powershell
+docker compose exec backend python -m pytest
+```
 
 ## Docker Setup
 
