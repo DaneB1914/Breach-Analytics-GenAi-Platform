@@ -190,6 +190,68 @@ Invoke-RestMethod http://127.0.0.1:8000/incidents/1/summary
 
 ![FastAPI Docs Part 3](docs/screenshots/fastapi-docs-3.png)
 
+The images below render inline on GitHub and show the full breach analytics workflow from dashboard overview through API documentation.
+
+### Dashboard Overview
+
+High-level dashboard with workflow context and populated counts for events, alerts, incidents, and summaries.
+
+![Dashboard overview](./docs/screenshots/dashboard-overview.png)
+
+### Normalized Events
+
+Normalized telemetry from multiple source systems, including users, assets, severities, event types, and timestamps.
+
+![Events list](./docs/screenshots/events-list.png)
+
+### Detection Alerts
+
+Rule-based alert results showing severity, related users, affected assets, and detection descriptions.
+
+![Alerts list](./docs/screenshots/alerts-list.png)
+
+### Correlated Incidents
+
+Incident list showing correlated investigations with severity, status, affected user, and event timing.
+
+![Incidents list](./docs/screenshots/incidents-list.png)
+
+### Incident Detail
+
+Incident detail view with investigation context, related alerts, related events, and summary controls.
+
+![Incident detail](./docs/screenshots/incident-summary.png)
+
+### LLM Incident Summary
+
+Auditable incident summary generated from stored incident, alert, and event evidence.
+
+![LLM incident summary overview](./docs/screenshots/llm-summary-1.png)
+
+Technical summary and attack timeline for analyst review.
+
+![LLM incident summary technical detail](./docs/screenshots/llm-summary-2.png)
+
+Containment recommendations and evidence event IDs used by the summary.
+
+![LLM incident summary evidence](./docs/screenshots/llm-summary-3.png)
+
+### FastAPI API Docs
+
+Swagger UI showing the documented backend endpoints.
+
+![FastAPI docs overview](./docs/screenshots/fastapi-docs-1.png)
+
+Workflow and incident endpoints used to run the backend pipeline and summarize incidents.
+
+![FastAPI docs workflow endpoints](./docs/screenshots/fastapi-docs-2.png)
+
+Schema documentation for API responses and typed backend contracts.
+
+![FastAPI docs schemas](./docs/screenshots/fastapi-docs-3.png)
+
+Screenshot files and capture notes: [docs/screenshots/README.md](./docs/screenshots/README.md)
+
 ## Testing
 
 Run backend tests inside Docker:
