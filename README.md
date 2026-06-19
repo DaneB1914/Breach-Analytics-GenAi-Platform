@@ -4,6 +4,10 @@ A full-stack AI-assisted breach analytics platform that ingests security telemet
 
 This project is designed as a portfolio-ready demonstration for breach analytics, AI/GenAI, ETL automation, database modeling, API development, and full-stack software engineering work.
 
+## Recruiter Summary
+
+This project demonstrates an end-to-end breach analytics workflow with a working backend, database, ETL pipeline, detection engine, incident correlation layer, GenAI-ready summary module, REST API, and React dashboard. It can be reviewed quickly by running Docker Compose, opening the dashboard, and following the sample breach story from raw telemetry to an auditable incident summary.
+
 ## Why This Project Matters
 
 Breach analytics teams often need to review logs from many systems, identify suspicious behavior across time, and turn technical evidence into clear investigation narratives. This project models that workflow end to end.
@@ -16,6 +20,20 @@ It supports investigation teams by:
 - Correlating related alerts into incidents with timelines and supporting evidence
 - Generating auditable AI-assisted summaries based only on stored incident, alert, and event data
 - Supporting faster investigation, reporting, and handoff between technical and non-technical stakeholders
+
+## Role Alignment
+
+| Role Requirement | How This Project Demonstrates It |
+| --- | --- |
+| Artificial Intelligence / GenAI | Uses an AI-assisted incident summary workflow that turns correlated evidence into executive and technical investigation summaries. |
+| Large Language Models | Includes an LLM-ready summarization module with structured inputs, evidence IDs, deterministic mock mode, and a provider boundary for future real-model integration. |
+| ETL automation | Extracts JSON and CSV security logs, preserves raw records, normalizes telemetry, and loads PostgreSQL through repeatable commands and API workflow endpoints. |
+| Database modeling | Models raw events, normalized events, alerts, incidents, incident-event evidence links, and stored summaries with SQLAlchemy and Alembic migrations. |
+| Coding and scripting | Implements command-line workflow runners, pytest coverage, Dockerized services, and readable Python modules for ETL, detections, incidents, and summaries. |
+| API development | Exposes FastAPI endpoints for health checks, events, alerts, incidents, workflow execution, and incident summary generation. |
+| Front-end design | Provides a clean Next.js dashboard for reviewing counts, workflow actions, normalized events, alerts, incidents, incident details, and summaries. |
+| Full-stack software development | Connects PostgreSQL, FastAPI, SQLAlchemy, backend workflow logic, REST APIs, Docker Compose, and a TypeScript React frontend into one runnable application. |
+| Breach analytics | Demonstrates a realistic investigation pattern: failed logins, unusual access, VPN activity, privilege escalation, suspicious API downloads, endpoint alerts, incident correlation, and summary reporting. |
 
 ## Tech Stack
 
@@ -128,6 +146,34 @@ Optional full reset, including the local PostgreSQL volume:
 docker compose down -v
 ```
 
+## Demo Script
+
+Use this short walkthrough for a recruiter, hiring manager, or consulting-style technical review.
+
+1. Start Docker from the project root:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
+```
+
+2. Run migrations and the full backend workflow:
+
+```powershell
+docker compose exec backend alembic upgrade head
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
+```
+
+3. Open the dashboard at `http://localhost:3000`.
+4. Review the dashboard counts to confirm events, alerts, and incidents were created.
+5. Review the events section to show normalized telemetry from multiple log sources.
+6. Review the alerts section to show detection rules firing on suspicious behavior.
+7. Review the incidents section to show correlated alerts grouped into an investigation.
+8. Open an incident detail view and generate the LLM incident summary.
+9. Review the summary panel to show executive summary, technical summary, timeline, containment steps, and evidence event IDs.
+10. Open `http://127.0.0.1:8000/docs` to show the FastAPI endpoints and typed API contracts.
+
 ## API Endpoints
 
 Key endpoints:
@@ -159,80 +205,49 @@ Invoke-RestMethod http://127.0.0.1:8000/incidents/1/summary
 
 ## Screenshots
 
-### Dashboard Overview
-![Dashboard Overview](docs/screenshots/dashboard-overview.png)
-
-### Events List
-![Events List](docs/screenshots/events-list.png)
-
-### Alerts List
-![Alerts List](docs/screenshots/alerts-list.png)
-
-### Incidents List
-![Incidents List](docs/screenshots/incidents-list.png)
-
-### Incident Summary
-![Incident Summary](docs/screenshots/incident-summary.png)
-
-### LLM Incident Summary
-
-![LLM Summary Part 1](docs/screenshots/llm-summary-1.png)
-
-![LLM Summary Part 2](docs/screenshots/llm-summary-2.png)
-
-![LLM Summary Part 3](docs/screenshots/llm-summary-3.png)
-
-### FastAPI API Docs
-
-![FastAPI Docs Part 1](docs/screenshots/fastapi-docs-1.png)
-
-![FastAPI Docs Part 2](docs/screenshots/fastapi-docs-2.png)
-
-![FastAPI Docs Part 3](docs/screenshots/fastapi-docs-3.png)
-
 The images below render inline on GitHub and show the full breach analytics workflow from dashboard overview through API documentation.
 
 ### Dashboard Overview
 
-High-level dashboard with workflow context and populated counts for events, alerts, incidents, and summaries.
+Portfolio dashboard with workflow context and populated counts for normalized events, alerts, incidents, and summaries.
 
 ![Dashboard overview](./docs/screenshots/dashboard-overview.png)
 
 ### Normalized Events
 
-Normalized telemetry from multiple source systems, including users, assets, severities, event types, and timestamps.
+Normalized telemetry from authentication, VPN, cloud audit, API access, and endpoint sources.
 
 ![Events list](./docs/screenshots/events-list.png)
 
 ### Detection Alerts
 
-Rule-based alert results showing severity, related users, affected assets, and detection descriptions.
+Detection results showing rule names, severity, related users, affected assets, and alert descriptions.
 
 ![Alerts list](./docs/screenshots/alerts-list.png)
 
 ### Correlated Incidents
 
-Incident list showing correlated investigations with severity, status, affected user, and event timing.
+Correlated investigations with incident severity, status, affected user, and first/last seen timestamps.
 
 ![Incidents list](./docs/screenshots/incidents-list.png)
 
 ### Incident Detail
 
-Incident detail view with investigation context, related alerts, related events, and summary controls.
+Incident detail view tying together related alerts, related events, investigation context, and summary controls.
 
 ![Incident detail](./docs/screenshots/incident-summary.png)
 
 ### LLM Incident Summary
 
-Auditable incident summary generated from stored incident, alert, and event evidence.
+Executive summary generated from stored incident, alert, and event evidence.
 
 ![LLM incident summary overview](./docs/screenshots/llm-summary-1.png)
 
-Technical summary and attack timeline for analyst review.
+Technical summary and attack timeline designed for analyst review.
 
 ![LLM incident summary technical detail](./docs/screenshots/llm-summary-2.png)
 
-Containment recommendations and evidence event IDs used by the summary.
+Containment recommendations and evidence event IDs for auditability.
 
 ![LLM incident summary evidence](./docs/screenshots/llm-summary-3.png)
 
@@ -242,7 +257,7 @@ Swagger UI showing the documented backend endpoints.
 
 ![FastAPI docs overview](./docs/screenshots/fastapi-docs-1.png)
 
-Workflow and incident endpoints used to run the backend pipeline and summarize incidents.
+Workflow and incident endpoints used to run the backend pipeline and generate summaries.
 
 ![FastAPI docs workflow endpoints](./docs/screenshots/fastapi-docs-2.png)
 
@@ -275,6 +290,14 @@ docker compose exec backend alembic current
 - Implemented rule-based detections for brute force activity, unusual login behavior, privilege escalation, suspicious API downloads, endpoint alerts, and high-severity event clustering.
 - Created incident correlation logic that groups related alerts, links supporting evidence events, assigns incident severity, and produces readable suspected attack paths.
 - Designed an auditable LLM-ready summary workflow with deterministic mock mode, evidence event IDs, executive summaries, technical summaries, timelines, and containment recommendations.
+
+## Limitations
+
+- The included telemetry is realistic but synthetic; no real personal data, customer data, or production logs are used.
+- Detection rules are deterministic examples intended for portfolio demonstration, not a replacement for a production SIEM or managed detection platform.
+- The LLM workflow defaults to deterministic mock mode so the project runs reliably without paid API access or external network dependencies.
+- Authentication, authorization, audit logging, and production-grade secrets management are not implemented yet.
+- The Docker Compose setup is optimized for local review and development, not hardened cloud deployment.
 
 ## Future Improvements
 
