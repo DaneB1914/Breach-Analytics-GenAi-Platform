@@ -197,6 +197,27 @@ class LLMSummary(Base):
     model_name: Mapped[str | None] = mapped_column(String(100))
     executive_summary: Mapped[str] = mapped_column(Text)
     technical_summary: Mapped[str] = mapped_column(Text)
+    attack_timeline: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
+    affected_users: Mapped[list[str]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
+    affected_assets: Mapped[list[str]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
+    suspected_attack_path: Mapped[str | None] = mapped_column(Text)
+    recommended_containment_steps: Mapped[list[str]] = mapped_column(
+        JSONB,
+        server_default=text("'[]'::jsonb"),
+        nullable=False,
+    )
     evidence_event_ids: Mapped[list[int]] = mapped_column(
         JSONB,
         server_default=text("'[]'::jsonb"),

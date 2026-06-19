@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.api.dependencies import get_db
 from app.api.routes import workflow as workflow_routes
-from app.db.models import Alert, Incident, IncidentEvent, NormalizedEvent
+from app.db.models import Alert, Incident, IncidentEvent, LLMSummary, NormalizedEvent
 from app.main import create_app
 
 NOW = datetime(2026, 6, 16, 9, 30, tzinfo=timezone.utc)
@@ -20,11 +20,14 @@ def fake_session() -> "FakeSession":
     event = sample_event()
     alert = sample_alert()
     incident = sample_incident(alert=alert, event=event)
+    older_summary = sample_summary(summary_id=1, executive_summary="Older summary")
+    latest_summary = sample_summary(summary_id=2, executive_summary="Latest summary")
 
     return FakeSession(
         events={event.id: event},
         alerts={alert.id: alert},
         incidents={incident.id: incident},
+        summaries=[older_summary, latest_summary],
     )
 
 
@@ -76,6 +79,16 @@ def test_missing_event_alert_and_incident_return_404(client: TestClient) -> None
     assert client.get("/events/999").status_code == 404
     assert client.get("/alerts/999").status_code == 404
     assert client.get("/incidents/999").status_code == 404
+    assert client.post("/incidents/999/summarize").status_code == 404
+    assert client.get("/incidents/999/summary").status_code == 404
+
+
+def test_get_summary_returns_latest_stored_summary(client: TestClient) -> None:
+    response = client.get("/incidents/1/summary")
+
+    assert response.status_code == 200
+    assert response.json()["executive_summary"] == "Latest summary"
+    assert response.json()["evidence_event_ids"] == [1]
 
 
 def test_workflow_endpoints_return_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -135,10 +148,12 @@ class FakeSession:
         events: dict[int, NormalizedEvent],
         alerts: dict[int, Alert],
         incidents: dict[int, Incident],
+        summaries: list[LLMSummary],
     ) -> None:
         self.events = events
         self.alerts = alerts
         self.incidents = incidents
+        self.summaries = summaries
 
     def scalars(self, statement) -> FakeScalarResult:
         entity = statement.column_descriptions[0]["entity"]
@@ -159,6 +174,14 @@ class FakeSession:
             return self.alerts.get(primary_key)
         if model is Incident:
             return self.incidents.get(primary_key)
+
+        return None
+
+    def scalar(self, statement):
+        entity = statement.column_descriptions[0]["entity"]
+
+        if entity is LLMSummary:
+            return sorted(self.summaries, key=lambda summary: (summary.created_at, summary.id))[-1]
 
         return None
 
@@ -231,3 +254,26 @@ def sample_incident(alert: Alert, event: NormalizedEvent) -> Incident:
         )
     ]
     return incident
+
+
+def sample_summary(summary_id: int, executive_summary: str) -> LLMSummary:
+    return LLMSummary(
+        id=summary_id,
+        incident_id=1,
+        created_at=NOW.replace(minute=30 + summary_id),
+        model_name="mock-deterministic-v1",
+        executive_summary=executive_summary,
+        technical_summary="Technical summary",
+        attack_timeline=[
+            {
+                "event_id": 1,
+                "timestamp": NOW.isoformat(),
+                "source_system": "api_gateway",
+            }
+        ],
+        affected_users=["alex.morgan"],
+        affected_assets=["API-GATEWAY-01"],
+        suspected_attack_path="Suspicious API data download",
+        recommended_containment_steps=["Review API export activity."],
+        evidence_event_ids=[1],
+    )

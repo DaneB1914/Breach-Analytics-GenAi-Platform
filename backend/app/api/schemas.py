@@ -65,6 +65,23 @@ class IncidentDetailResponse(IncidentResponse):
     related_events: list[EventResponse]
 
 
+class LLMSummaryResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    incident_id: int
+    created_at: datetime | None = None
+    model_name: str | None = None
+    executive_summary: str
+    technical_summary: str
+    attack_timeline: list[dict[str, Any]]
+    affected_users: list[str]
+    affected_assets: list[str]
+    suspected_attack_path: str | None = None
+    recommended_containment_steps: list[str]
+    evidence_event_ids: list[int]
+
+
 class WorkflowResponse(BaseModel):
     status: str
     message: str

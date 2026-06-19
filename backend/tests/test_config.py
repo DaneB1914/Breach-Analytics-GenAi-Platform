@@ -22,3 +22,14 @@ def test_settings_read_database_url_from_environment(monkeypatch) -> None:
     assert settings.database_url == database_url
 
     get_settings.cache_clear()
+
+
+def test_settings_read_optional_openai_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+
+    settings = get_settings()
+
+    assert settings.openai_api_key == "test-key"
+
+    get_settings.cache_clear()

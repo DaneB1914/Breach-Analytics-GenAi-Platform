@@ -12,6 +12,7 @@ class Settings(BaseModel):
     """Runtime settings loaded from environment variables."""
 
     database_url: str = DEFAULT_DATABASE_URL
+    openai_api_key: str | None = None
 
 
 @lru_cache
@@ -19,4 +20,5 @@ def get_settings() -> Settings:
     # Read environment variables in one place so future database code stays simple.
     return Settings(
         database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
+        openai_api_key=os.getenv("OPENAI_API_KEY") or None,
     )

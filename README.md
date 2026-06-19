@@ -2,7 +2,7 @@
 
 A portfolio project for a breach analytics AI/GenAI contractor role. The planned platform will ingest fake security logs, normalize them through ETL, store them in PostgreSQL, detect suspicious activity, group alerts into incidents, and optionally generate auditable incident summaries with an LLM.
 
-## Current Phase: API Endpoints
+## Current Phase: LLM Incident Summaries
 
 This project currently includes:
 
@@ -21,8 +21,9 @@ This project currently includes:
 - Detection engine that creates `Alert` records from normalized events
 - Incident correlation engine that groups alerts into `Incident` records
 - REST API endpoints for events, alerts, incidents, and backend workflow runs
+- Mock-first incident summary generation stored in `LLMSummary`
 
-Future phases will add optional LLM summaries and the Next.js frontend.
+Future phases will add the Next.js frontend.
 
 ## Project Structure
 
@@ -65,12 +66,18 @@ breach-analytics-genai/
         engine.py
         run.py
         schemas.py
+      summaries/
+        prompt.py
+        providers.py
+        schemas.py
+        service.py
       main.py
     migrations/
       versions/
         202606150001_create_breach_analytics_tables.py
         202606170001_add_alert_detection_metadata.py
         202606170002_add_incident_correlation_metadata.py
+        202606180001_add_llm_summary_audit_fields.py
     tests/
       test_api_endpoints.py
       test_config.py
@@ -79,6 +86,7 @@ breach-analytics-genai/
       test_health.py
       test_incidents.py
       test_models.py
+      test_summaries.py
     requirements.txt
   data/
     auth_logs.json
@@ -363,6 +371,8 @@ Available endpoints:
 - `GET /alerts/{alert_id}`
 - `GET /incidents`
 - `GET /incidents/{incident_id}`
+- `POST /incidents/{incident_id}/summarize`
+- `GET /incidents/{incident_id}/summary`
 - `POST /workflow/etl`
 - `POST /workflow/detections`
 - `POST /workflow/incidents`
@@ -416,6 +426,77 @@ Run API tests inside Docker:
 docker compose exec backend python -m pytest
 ```
 
+## LLM Incident Summaries
+
+The summary feature generates an auditable breach investigation summary for one incident and stores it in `llm_summaries`.
+
+For a given `incident_id`, the backend retrieves:
+
+- Incident details
+- Related alerts
+- Related normalized events
+- Evidence event IDs from `incident_events`
+
+The stored summary includes:
+
+- Executive summary
+- Technical summary
+- Attack timeline
+- Affected users
+- Affected assets
+- Suspected attack path
+- Recommended containment steps
+- Event IDs used as evidence
+
+### Mock Mode
+
+`OPENAI_API_KEY` is optional. If it is missing, the app uses a deterministic mock summarizer. Mock mode exists so the project works in local development, CI, portfolio demos, and Docker without paid API access or network dependencies.
+
+The provider interface is isolated in `backend/app/summaries/`, so a real OpenAI-backed provider can be added later without changing the API routes or database model.
+
+### Auditable Behavior
+
+The summarizer must not invent evidence. It builds summaries only from incident, alert, and normalized event data already stored in the database. The generated summary stores `evidence_event_ids` so an analyst can trace summary claims back to the source events.
+
+### Run Summarization In `/docs`
+
+Start the backend and open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+Run the full workflow first with:
+
+```text
+POST /workflow/run-all
+```
+
+Then generate and retrieve a summary:
+
+```text
+POST /incidents/1/summarize
+GET /incidents/1/summary
+```
+
+### Run Summarization With PowerShell
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
+docker compose exec backend alembic upgrade head
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/incidents/1/summarize
+Invoke-RestMethod http://127.0.0.1:8000/incidents/1/summary
+```
+
+Confirm summaries were stored:
+
+```powershell
+docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT id, incident_id, model_name, evidence_event_ids FROM llm_summaries ORDER BY id;"
+```
+
 ## Docker Setup
 
 Prerequisites:
@@ -462,7 +543,7 @@ docker compose down -v
 
 ## Database Migrations
 
-Migrations currently create the core breach analytics schema, add alert metadata used by the detection engine, and add incident metadata used by correlation. They do not add frontend screens or LLM calls yet.
+Migrations currently create the core breach analytics schema, add alert metadata used by the detection engine, add incident metadata used by correlation, and add auditable fields for stored incident summaries. They do not add frontend screens yet.
 
 The initial Alembic migration creates:
 
@@ -475,6 +556,7 @@ The initial Alembic migration creates:
 
 The second migration adds detection metadata columns to `alerts`.
 The third migration adds correlation metadata columns to `incidents`.
+The fourth migration adds auditable summary fields to `llm_summaries`.
 
 Run the migration through Docker from the project root:
 

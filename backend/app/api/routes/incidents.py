@@ -5,8 +5,15 @@ from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.dependencies import get_db
-from app.api.schemas import AlertResponse, EventResponse, IncidentDetailResponse, IncidentResponse
+from app.api.schemas import (
+    AlertResponse,
+    EventResponse,
+    IncidentDetailResponse,
+    IncidentResponse,
+    LLMSummaryResponse,
+)
 from app.db.models import Incident, IncidentEvent
+from app.summaries.service import generate_and_store_summary, get_latest_summary
 
 router = APIRouter(tags=["incidents"])
 
@@ -51,6 +58,31 @@ def get_incident(incident_id: int, db: Session = Depends(get_db)) -> IncidentDet
         raise HTTPException(status_code=404, detail="Incident not found")
 
     return build_incident_detail_response(incident)
+
+
+@router.post("/incidents/{incident_id}/summarize", response_model=LLMSummaryResponse)
+def summarize_incident(incident_id: int, db: Session = Depends(get_db)) -> LLMSummaryResponse:
+    # Summary generation is one transaction: gather evidence, generate, and store.
+    with db.begin():
+        summary = generate_and_store_summary(db, incident_id)
+
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    return LLMSummaryResponse.model_validate(summary)
+
+
+@router.get("/incidents/{incident_id}/summary", response_model=LLMSummaryResponse)
+def get_incident_summary(incident_id: int, db: Session = Depends(get_db)) -> LLMSummaryResponse:
+    incident = db.get(Incident, incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    summary = get_latest_summary(db, incident_id)
+    if summary is None:
+        raise HTTPException(status_code=404, detail="Summary not found")
+
+    return LLMSummaryResponse.model_validate(summary)
 
 
 def apply_incident_filters(

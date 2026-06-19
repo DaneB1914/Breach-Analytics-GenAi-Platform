@@ -90,6 +90,11 @@ def test_breach_analytics_columns_are_available() -> None:
             "model_name",
             "executive_summary",
             "technical_summary",
+            "attack_timeline",
+            "affected_users",
+            "affected_assets",
+            "suspected_attack_path",
+            "recommended_containment_steps",
             "evidence_event_ids",
         },
     }
@@ -102,4 +107,8 @@ def test_jsonb_columns_store_flexible_payloads_and_evidence() -> None:
     assert isinstance(Base.metadata.tables["raw_events"].c.raw_payload.type, JSONB)
     assert isinstance(Base.metadata.tables["incidents"].c.affected_assets.type, JSONB)
     assert isinstance(Base.metadata.tables["alerts"].c.related_event_ids.type, JSONB)
+    assert isinstance(Base.metadata.tables["llm_summaries"].c.attack_timeline.type, JSONB)
+    assert isinstance(Base.metadata.tables["llm_summaries"].c.affected_users.type, JSONB)
+    assert isinstance(Base.metadata.tables["llm_summaries"].c.affected_assets.type, JSONB)
+    assert isinstance(Base.metadata.tables["llm_summaries"].c.recommended_containment_steps.type, JSONB)
     assert isinstance(Base.metadata.tables["llm_summaries"].c.evidence_event_ids.type, JSONB)
