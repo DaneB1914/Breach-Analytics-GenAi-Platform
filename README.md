@@ -159,18 +159,36 @@ Invoke-RestMethod http://127.0.0.1:8000/incidents/1/summary
 
 ## Screenshots
 
-Screenshots to add before publishing the project portfolio:
+### Dashboard Overview
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
-| Screenshot | Suggested File | What To Capture |
-| --- | --- | --- |
-| Dashboard overview | `docs/screenshots/dashboard-overview.png` | Counts, workflow explanation, and main dashboard layout |
-| Events list | `docs/screenshots/events-list.png` | Normalized event table with users, assets, severities, and timestamps |
-| Alerts list | `docs/screenshots/alerts-list.png` | Detection results with rule names and related evidence |
-| Incident detail | `docs/screenshots/incident-detail.png` | Incident metadata, related alerts, and related events |
-| LLM summary panel | `docs/screenshots/llm-summary-panel.png` | Executive summary, technical summary, timeline, and evidence IDs |
-| FastAPI docs | `docs/screenshots/fastapi-docs.png` | Swagger UI showing the core API endpoints |
+### Events List
+![Events List](docs/screenshots/events-list.png)
 
-Screenshot guidance: [docs/screenshots/README.md](docs/screenshots/README.md)
+### Alerts List
+![Alerts List](docs/screenshots/alerts-list.png)
+
+### Incidents List
+![Incidents List](docs/screenshots/incidents-list.png)
+
+### Incident Summary
+![Incident Summary](docs/screenshots/incident-summary.png)
+
+### LLM Incident Summary
+
+![LLM Summary Part 1](docs/screenshots/llm-summary-1.png)
+
+![LLM Summary Part 2](docs/screenshots/llm-summary-2.png)
+
+![LLM Summary Part 3](docs/screenshots/llm-summary-3.png)
+
+### FastAPI API Docs
+
+![FastAPI Docs Part 1](docs/screenshots/fastapi-docs-1.png)
+
+![FastAPI Docs Part 2](docs/screenshots/fastapi-docs-2.png)
+
+![FastAPI Docs Part 3](docs/screenshots/fastapi-docs-3.png)
 
 ## Testing
 
