@@ -7,7 +7,10 @@ import type {
   WorkflowResponse
 } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const API_BASE_URL =
+  process.env.FRONTEND_SERVER_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://127.0.0.1:8000";
 
 export class ApiError extends Error {
   status: number;

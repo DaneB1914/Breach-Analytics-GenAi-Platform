@@ -5,8 +5,15 @@ __pycache__/
 .venv/
 venv/
 
+# Node / Next.js
+node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+
 # Local environment files
 .env
+.env*.local
 
 # Editor and OS files
 .idea/

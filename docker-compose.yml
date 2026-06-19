@@ -24,6 +24,8 @@ services:
     environment:
       # The backend reads this value through app.core.config.get_settings().
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://breach_user:breach_password@db:5432/breach_analytics}
+      # Optional. Leave empty to use the deterministic mock summarizer.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     ports:
       - "8000:8000"
     volumes:
@@ -35,6 +37,29 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Browser-facing URL. This is what recruiters/users can see and use.
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+      # Server-rendered Next.js code runs inside this container, so it uses the
+      # Docker Compose service name to reach FastAPI.
+      FRONTEND_SERVER_API_BASE_URL: ${FRONTEND_SERVER_API_BASE_URL:-http://backend:8000}
+      # Makes file watching more reliable on Windows bind mounts.
+      WATCHPACK_POLLING: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend:
+        condition: service_started
 
 volumes:
   postgres_data:

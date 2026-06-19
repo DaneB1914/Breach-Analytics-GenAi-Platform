@@ -2,7 +2,7 @@
 
 A portfolio project for a breach analytics AI/GenAI contractor role. The planned platform will ingest fake security logs, normalize them through ETL, store them in PostgreSQL, detect suspicious activity, group alerts into incidents, and optionally generate auditable incident summaries with an LLM.
 
-## Current Phase: LLM Incident Summaries
+## Current Phase: Dockerized Full Stack
 
 This project currently includes:
 
@@ -22,8 +22,10 @@ This project currently includes:
 - Incident correlation engine that groups alerts into `Incident` records
 - REST API endpoints for events, alerts, incidents, and backend workflow runs
 - Mock-first incident summary generation stored in `LLMSummary`
+- Next.js / React / TypeScript dashboard
+- Full-stack Docker Compose support for PostgreSQL, FastAPI, and Next.js
 
-Future phases will add the Next.js frontend.
+Future phases can add authentication, richer visualizations, deployment automation, and a real LLM provider.
 
 ## Project Structure
 
@@ -97,6 +99,29 @@ breach-analytics-genai/
     README.md
   docs/
   frontend/
+    .dockerignore
+    .env.local.example
+    Dockerfile
+    README.md
+    package-lock.json
+    package.json
+    src/
+      app/
+        incidents/
+          [id]/
+            page.tsx
+        actions.ts
+        globals.css
+        layout.tsx
+        page.tsx
+      components/
+        SeverityBadge.tsx
+        SummaryPanel.tsx
+        WorkflowPanel.tsx
+      lib/
+        api.ts
+        format.ts
+        types.ts
   scripts/
 ```
 
@@ -497,6 +522,80 @@ Confirm summaries were stored:
 docker compose exec db psql -U breach_user -d breach_analytics -c "SELECT id, incident_id, model_name, evidence_event_ids FROM llm_summaries ORDER BY id;"
 ```
 
+## Frontend Dashboard
+
+The frontend is a Next.js / React / TypeScript dashboard that consumes the FastAPI backend.
+
+It includes:
+
+- Dashboard overview counts for events, alerts, incidents, and stored LLM summaries
+- Workflow buttons for ETL, detections, incident correlation, and full workflow
+- Events table with source system, event type, user, asset, severity, and timestamp
+- Alerts table with rule name, severity, related user, related asset, and description
+- Incidents table with title, severity, status, affected user, first seen, and last seen
+- Incident detail view with related alerts, related events, summary generation, and latest summary display
+
+### Frontend Setup
+
+Run these commands from PowerShell:
+
+```powershell
+cd C:\Projects\breach-analytics-genai\frontend
+Copy-Item .env.local.example .env.local -Force
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+The frontend reads the backend URL from:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+FRONTEND_SERVER_API_BASE_URL=http://127.0.0.1:8000
+```
+
+### Run Backend And Frontend Together
+
+The simplest path is Docker Compose from the project root:
+
+```powershell
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
+docker compose exec backend alembic upgrade head
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
+```
+
+Then open:
+
+```text
+http://localhost:3000
+```
+
+### Screenshot Checklist
+
+Recommended screenshots for a GitHub README:
+
+- Dashboard overview with populated counts
+- Workflow panel after a successful full workflow run
+- Alerts table showing high severity detections
+- Incidents table showing the correlated incident
+- Incident detail page with related alerts, related events, and generated summary
+
+### How The Frontend Maps To The Workflow
+
+- Workflow panel calls `/workflow/etl`, `/workflow/detections`, `/workflow/incidents`, and `/workflow/run-all`
+- Events section reads `/events`
+- Alerts section reads `/alerts`
+- Incidents section reads `/incidents`
+- Incident detail reads `/incidents/{incident_id}`
+- Summary panel calls `POST /incidents/{incident_id}/summarize` and reads `GET /incidents/{incident_id}/summary`
+
 ## Docker Setup
 
 Prerequisites:
@@ -504,29 +603,55 @@ Prerequisites:
 - Docker Desktop is installed
 - Docker Desktop is running
 
+Docker Compose starts the full stack:
+
+- PostgreSQL at `localhost:5432`
+- FastAPI backend at `http://localhost:8000`
+- Next.js frontend at `http://localhost:3000`
+
 Run these commands from the project root in PowerShell:
 
 ```powershell
-Copy-Item .env.example .env
-docker compose up --build
+cd C:\Projects\breach-analytics-genai
+Copy-Item .env.example .env -Force
+docker compose up --build -d
 ```
 
-When the containers are running, open:
+Apply database migrations:
+
+```powershell
+docker compose exec backend alembic upgrade head
+```
+
+Run the full backend workflow through the API:
+
+```powershell
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
+```
+
+Open the frontend dashboard:
+
+```text
+http://localhost:3000
+```
+
+Open the backend health check and API docs:
 
 ```text
 http://127.0.0.1:8000/health
-```
-
-You can also open the FastAPI docs:
-
-```text
 http://127.0.0.1:8000/docs
 ```
 
-In a second PowerShell window, you can confirm both services are running:
+Confirm the containers are running:
 
 ```powershell
 docker compose ps
+```
+
+Confirm the backend is responding:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
 To stop the app:
