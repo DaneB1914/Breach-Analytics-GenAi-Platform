@@ -1,12 +1,12 @@
 # Breach Analytics GenAI Platform
 
-A full-stack AI-assisted breach analytics platform that ingests security telemetry, normalizes events through ETL, detects suspicious activity, correlates alerts into incidents, and generates auditable LLM-powered investigation summaries.
+A full-stack AI-assisted breach analytics platform that ingests sample or analyst-uploaded security telemetry, normalizes events through ETL, detects suspicious activity, correlates alerts into incidents, and generates auditable LLM-powered investigation summaries.
 
 This project is designed as a portfolio-ready demonstration for breach analytics, AI/GenAI, ETL automation, database modeling, API development, and full-stack software engineering work.
 
 ## Recruiter Summary
 
-This project demonstrates an end-to-end breach analytics workflow with a working backend, database, ETL pipeline, detection engine, incident correlation layer, GenAI-ready summary module, REST API, and React dashboard. It can be reviewed quickly by running Docker Compose, opening the dashboard, and following the sample breach story from raw telemetry to an auditable incident summary.
+This project demonstrates an end-to-end breach analytics workflow with a working backend, database, ETL pipeline, detection engine, incident correlation layer, GenAI-ready summary module, REST API, and React dashboard. It can be reviewed quickly by running Docker Compose, opening the dashboard, and following either the built-in sample breach story or an analyst-uploaded CSV/JSON dataset from raw telemetry to an auditable incident summary.
 
 ## Why This Project Matters
 
@@ -27,8 +27,8 @@ It supports investigation teams by:
 | --- | --- |
 | Artificial Intelligence / GenAI | Uses an AI-assisted incident summary workflow that turns correlated evidence into executive and technical investigation summaries. |
 | Large Language Models | Includes an LLM-ready summarization module with structured inputs, evidence IDs, deterministic mock mode, and a provider boundary for future real-model integration. |
-| ETL automation | Extracts JSON and CSV security logs, preserves raw records, normalizes telemetry, and loads PostgreSQL through repeatable commands and API workflow endpoints. |
-| Database modeling | Models raw events, normalized events, alerts, incidents, incident-event evidence links, and stored summaries with SQLAlchemy and Alembic migrations. |
+| ETL automation | Extracts built-in and uploaded JSON/CSV security logs, preserves raw records, normalizes telemetry, and loads PostgreSQL through repeatable commands and API workflow endpoints. |
+| Database modeling | Models raw events, normalized events, alerts, incidents, incident-event evidence links, uploaded datasets, uploaded files, and stored summaries with SQLAlchemy and Alembic migrations. |
 | Coding and scripting | Implements command-line workflow runners, pytest coverage, Dockerized services, and readable Python modules for ETL, detections, incidents, and summaries. |
 | API development | Exposes FastAPI endpoints for health checks, events, alerts, incidents, workflow execution, and incident summary generation. |
 | Front-end design | Provides a clean Next.js dashboard for reviewing counts, workflow actions, normalized events, alerts, incidents, incident details, and summaries. |
@@ -54,7 +54,8 @@ It supports investigation teams by:
 
 ```mermaid
 flowchart LR
-    A["Security Logs"] --> B["ETL Pipeline"]
+    A["Sample Security Logs"] --> B["ETL Pipeline"]
+    U["Analyst CSV/JSON Uploads"] --> B
     B --> C["PostgreSQL"]
     C --> D["Detection Engine"]
     D --> E["Incident Correlation"]
@@ -66,7 +67,7 @@ flowchart LR
 
 Plain-English flow:
 
-1. Fake security logs are loaded from `data/`.
+1. Fake security logs can be loaded from `data/`, or analysts can upload CSV/JSON logs from the dashboard.
 2. The ETL pipeline stores original records and normalized events in PostgreSQL.
 3. Detection rules analyze normalized events and create alerts.
 4. Incident correlation groups related alerts into investigation-ready incidents.
@@ -79,6 +80,8 @@ More detail: [docs/architecture.md](docs/architecture.md)
 ## Features
 
 - Realistic fake breach data across authentication, VPN, cloud audit, API access, and endpoint alert sources
+- Analyst upload workflow for CSV, JSON arrays, and newline-delimited JSON logs
+- Upload metadata tracking for datasets, files, source type, status, and record counts
 - ETL normalization from mixed JSON and CSV logs into a common security event schema
 - Raw event preservation for auditability
 - Rule-based detection engine for suspicious breach activity
@@ -103,7 +106,7 @@ The sample data tells one connected breach investigation story:
 8. Incident correlation groups those alerts into an investigation.
 9. The summary workflow generates an auditable incident summary using the incident's evidence event IDs.
 
-The dataset also includes normal user activity and service account activity for comparison.
+The dataset also includes normal user activity and service account activity for comparison. The upload workflow lets an analyst run a similar process on their own local CSV or JSON exports without changing the built-in demo data.
 
 ## Run Locally With Docker
 
@@ -174,6 +177,49 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
 9. Review the summary panel to show executive summary, technical summary, timeline, containment steps, and evidence event IDs.
 10. Open `http://127.0.0.1:8000/docs` to show the FastAPI endpoints and typed API contracts.
 
+## Analyst Upload Workflow
+
+The app supports two ingestion paths:
+
+- Sample demo data from the repository's `data/` folder
+- Analyst-uploaded CSV, JSON array, or newline-delimited JSON files from the dashboard or API
+
+Uploaded files are stored in the local `uploads/` directory, which is ignored by Git. Metadata is stored in PostgreSQL through `UploadedDataset` and `UploadedFile` records. Uploaded records are preserved in `RawEvent`, normalized into `NormalizedEvent`, and can then be analyzed by the existing detection, incident correlation, and summary workflow.
+
+Generic normalization maps common field names such as `timestamp`, `username`, `source_ip`, `destination_ip`, `asset`, `action`, `outcome`, `severity`, `mitre_technique_id`, and `message` into the existing event schema. Missing fields are allowed and become null or sensible defaults.
+
+### Upload API Test Commands
+
+PowerShell 7 example using an existing sample JSON file:
+
+```powershell
+$upload = Invoke-RestMethod `
+  -Method Post `
+  -Uri http://127.0.0.1:8000/uploads `
+  -Form @{
+    name = "Uploaded auth logs"
+    source_type = "auth"
+    description = "Testing upload ingestion with sample auth logs"
+    file = Get-Item .\data\auth_logs.json
+  }
+
+$datasetId = $upload.id
+Invoke-RestMethod http://127.0.0.1:8000/uploads
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetId/normalize
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetId/run-workflow
+```
+
+If your PowerShell version does not support `-Form`, use `curl.exe` from PowerShell:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/uploads `
+  -F "name=Uploaded auth logs" `
+  -F "source_type=auth" `
+  -F "description=Testing upload ingestion" `
+  -F "file=@data/auth_logs.json"
+```
+
 ## API Endpoints
 
 Key endpoints:
@@ -183,6 +229,11 @@ Key endpoints:
 - `GET /alerts`
 - `GET /incidents`
 - `POST /workflow/run-all`
+- `POST /uploads`
+- `GET /uploads`
+- `GET /uploads/{dataset_id}`
+- `POST /uploads/{dataset_id}/normalize`
+- `POST /uploads/{dataset_id}/run-workflow`
 - `POST /incidents/{incident_id}/summarize`
 - `GET /incidents/{incident_id}/summary`
 
@@ -294,6 +345,8 @@ docker compose exec backend alembic current
 ## Limitations
 
 - The included telemetry is realistic but synthetic; no real personal data, customer data, or production logs are used.
+- Uploaded files are stored locally for development review and should not be treated as production evidence storage.
+- The generic upload normalizer handles common field names but cannot fully understand every vendor-specific schema yet.
 - Detection rules are deterministic examples intended for portfolio demonstration, not a replacement for a production SIEM or managed detection platform.
 - The LLM workflow defaults to deterministic mock mode so the project runs reliably without paid API access or external network dependencies.
 - Authentication, authorization, audit logging, and production-grade secrets management are not implemented yet.
@@ -304,6 +357,7 @@ docker compose exec backend alembic current
 - Authentication and role-based access control
 - Cloud deployment
 - Real SIEM integrations
+- Source-specific upload templates and validation
 - Richer visualizations and timeline views
 - Analyst notes and investigation comments
 - Exportable PDF incident reports
@@ -316,6 +370,7 @@ breach-analytics-genai/
   data/                 Fake security telemetry used by the ETL pipeline
   docs/                 Architecture notes and screenshot guidance
   frontend/             Next.js / React / TypeScript dashboard
+  uploads/              Local analyst uploads ignored by Git
   docker-compose.yml    PostgreSQL, backend, and frontend services
   .env.example          Local Docker environment template
 ```

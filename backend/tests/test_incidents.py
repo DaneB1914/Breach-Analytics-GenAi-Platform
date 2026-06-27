@@ -1,8 +1,9 @@
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from app.db.models import Alert
+from app.db.models import Alert, Incident, IncidentEvent
 from app.incidents.correlation import build_incident, group_related_alerts
-from app.incidents.engine import assign_alerts_to_incident
+from app.incidents.engine import assign_alerts_to_incident, run_incident_correlation
 
 BASE_TIME = datetime(2026, 6, 16, 8, 49, tzinfo=timezone.utc)
 
@@ -76,6 +77,21 @@ def test_creates_readable_suspected_attack_path() -> None:
     )
 
 
+def test_run_incident_correlation_flushes_created_links_for_summary_workflow() -> None:
+    alerts = [
+        alert(1, "Brute force followed by successful login", "high", "alex.morgan", "CLOUD-IAM", [1, 2, 3, 4]),
+        alert(2, "Successful login from unusual IP", "medium", "alex.morgan", "CLOUD-IAM", [4]),
+    ]
+    session = FakeIncidentSession(alerts)
+
+    result = run_incident_correlation(session)  # type: ignore[arg-type]
+
+    assert result.incidents_created == 1
+    assert result.incident_events_linked == 4
+    assert session.flush_count == 2
+    assert any(isinstance(item, IncidentEvent) for item in session.added_items)
+
+
 def alert(
     alert_id: int,
     rule_name: str,
@@ -102,3 +118,38 @@ def alert(
         last_seen=first_seen + timedelta(minutes=1),
         normalized_message=f"{rule_name} test alert",
     )
+
+
+class FakeScalarResult:
+    def __init__(self, items: list[Any]) -> None:
+        self.items = items
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def all(self) -> list[Any]:
+        return self.items
+
+
+class FakeIncidentSession:
+    def __init__(self, alerts: list[Alert]) -> None:
+        self.alerts = alerts
+        self.added_items: list[Any] = []
+        self.flush_count = 0
+        self.next_id = 100
+
+    def scalars(self, statement) -> FakeScalarResult:
+        entity = statement.column_descriptions[0]["entity"]
+        if entity is Alert:
+            return FakeScalarResult(self.alerts)
+        return FakeScalarResult([])
+
+    def add(self, item: Any) -> None:
+        self.added_items.append(item)
+
+    def flush(self) -> None:
+        self.flush_count += 1
+        for item in self.added_items:
+            if isinstance(item, Incident) and item.id is None:
+                item.id = self.next_id
+                self.next_id += 1

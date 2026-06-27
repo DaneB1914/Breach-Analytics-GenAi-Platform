@@ -26,6 +26,8 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://breach_user:breach_password@db:5432/breach_analytics}
       # Optional. Leave empty to use the deterministic mock summarizer.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Local analyst uploads are stored in a bind-mounted folder.
+      UPLOAD_DIR: ${UPLOAD_DIR:-uploads}
     ports:
       - "8000:8000"
     volumes:
@@ -34,6 +36,7 @@ services:
       - ./backend/migrations:/app/migrations
       - ./backend/alembic.ini:/app/alembic.ini
       - ./data:/data:ro
+      - ./uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy

@@ -15,6 +15,10 @@ tsconfig.tsbuildinfo
 .env
 .env*.local
 
+# Analyst-uploaded files are local runtime data.
+uploads/*
+!uploads/.gitkeep
+
 # Editor and OS files
 .idea/
 .vscode/

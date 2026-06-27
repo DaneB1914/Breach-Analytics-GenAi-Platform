@@ -8,7 +8,8 @@ The design emphasizes auditability, repeatable local execution, and clear separa
 
 ```mermaid
 flowchart LR
-    A["Security Logs"] --> B["ETL Pipeline"]
+    A["Sample Security Logs"] --> B["ETL Pipeline"]
+    U["Analyst CSV/JSON Uploads"] --> B
     B --> C["PostgreSQL"]
     C --> D["Detection Engine"]
     D --> E["Incident Correlation"]
@@ -24,15 +25,19 @@ flowchart LR
 
 The `data/` folder contains realistic synthetic telemetry from authentication, VPN, cloud audit, API access, and endpoint alert sources. The records intentionally use slightly different field names so the ETL layer has to normalize them.
 
+Analysts can also upload CSV, JSON array, or newline-delimited JSON logs through the dashboard or upload API. Upload metadata is tracked separately from the built-in sample data.
+
 ### ETL Pipeline
 
 The ETL pipeline extracts JSON and CSV records, preserves each original payload in `RawEvent`, transforms each source into a common schema, and stores the result in `NormalizedEvent`.
 
 The normalized schema supports investigation fields such as timestamp, source system, event type, username, source IP, destination IP, asset, action, outcome, severity, MITRE technique ID, and message.
 
+For uploaded files, a generic normalizer maps common field names into the same schema while allowing missing fields to remain null.
+
 ### PostgreSQL
 
-PostgreSQL stores raw events, normalized events, alerts, incidents, incident-event evidence links, and LLM summaries. SQLAlchemy models define the schema, and Alembic manages migrations.
+PostgreSQL stores raw events, normalized events, alerts, incidents, incident-event evidence links, uploaded dataset metadata, uploaded file metadata, and LLM summaries. SQLAlchemy models define the schema, and Alembic manages migrations.
 
 ### Detection Engine
 
@@ -59,6 +64,7 @@ The summary module generates executive summaries, technical summaries, timelines
 - The project uses synthetic data only, so it is safe to publish and demo.
 - Raw payloads are preserved to support auditability and traceability.
 - Workflow steps can be run from CLI modules, API endpoints, or the dashboard.
+- Uploaded datasets can be normalized and analyzed without changing the existing sample-data workflow.
 - The summarization flow is intentionally evidence-bound and stores event IDs used in each summary.
 - Docker Compose keeps the database, backend, and frontend reproducible for local review.
 

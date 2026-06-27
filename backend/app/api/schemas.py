@@ -9,6 +9,7 @@ class EventResponse(BaseModel):
 
     id: int
     raw_event_id: int
+    uploaded_dataset_id: int | None = None
     normalized_at: datetime | None = None
     event_timestamp: datetime | None = None
     source_system: str
@@ -86,3 +87,28 @@ class WorkflowResponse(BaseModel):
     status: str
     message: str
     details: dict[str, Any]
+
+
+class UploadedFileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    dataset_id: int
+    original_filename: str
+    stored_path: str
+    content_type: str | None = None
+    size_bytes: int
+    uploaded_at: datetime | None = None
+
+
+class UploadedDatasetResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: str | None = None
+    created_at: datetime | None = None
+    status: str
+    source_type: str
+    record_count: int
+    files: list[UploadedFileResponse] = []

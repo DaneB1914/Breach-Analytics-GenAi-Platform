@@ -8,12 +8,22 @@ from app.detections.rules import collect_alert_candidates
 from app.detections.schemas import AlertCandidate, DetectionResult
 
 
-def run_detections(session: Session) -> DetectionResult:
+def run_detections(
+    session: Session,
+    dataset_id: int | None = None,
+    sample_only: bool = False,
+) -> DetectionResult:
     """Load normalized events, apply rules, and insert new alerts."""
+
+    statement = select(NormalizedEvent)
+    if dataset_id is not None:
+        statement = statement.where(NormalizedEvent.uploaded_dataset_id == dataset_id)
+    elif sample_only:
+        statement = statement.where(NormalizedEvent.uploaded_dataset_id.is_(None))
 
     events = list(
         session.scalars(
-            select(NormalizedEvent).order_by(
+            statement.order_by(
                 NormalizedEvent.event_timestamp,
                 NormalizedEvent.id,
             )
@@ -31,6 +41,11 @@ def run_detections(session: Session) -> DetectionResult:
 
         session.add(build_alert(candidate))
         alerts_created += 1
+
+    # The app uses autoflush=False. Flush here so a follow-up workflow step in
+    # the same transaction, such as incident correlation, can see new alerts.
+    if alerts_created:
+        session.flush()
 
     return DetectionResult(
         events_analyzed=len(events),

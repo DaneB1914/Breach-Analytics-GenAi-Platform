@@ -13,6 +13,7 @@ class Settings(BaseModel):
 
     database_url: str = DEFAULT_DATABASE_URL
     openai_api_key: str | None = None
+    upload_dir: str = "uploads"
 
 
 @lru_cache
@@ -21,4 +22,5 @@ def get_settings() -> Settings:
     return Settings(
         database_url=os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL),
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
+        upload_dir=os.getenv("UPLOAD_DIR", "uploads"),
     )

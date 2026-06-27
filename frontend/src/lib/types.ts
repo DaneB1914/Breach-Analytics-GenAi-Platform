@@ -3,6 +3,7 @@ export type Severity = "critical" | "high" | "medium" | "low" | string | null;
 export type EventRecord = {
   id: number;
   raw_event_id: number;
+  uploaded_dataset_id: number | null;
   normalized_at: string | null;
   event_timestamp: string | null;
   source_system: string;
@@ -74,4 +75,25 @@ export type WorkflowResponse = {
   status: string;
   message: string;
   details: Record<string, unknown>;
+};
+
+export type UploadedFileRecord = {
+  id: number;
+  dataset_id: number;
+  original_filename: string;
+  stored_path: string;
+  content_type: string | null;
+  size_bytes: number;
+  uploaded_at: string | null;
+};
+
+export type UploadedDatasetRecord = {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string | null;
+  status: string;
+  source_type: string;
+  record_count: number;
+  files: UploadedFileRecord[];
 };

@@ -35,7 +35,7 @@ def run_etl_workflow(db: Session = Depends(get_db)) -> WorkflowResponse:
 @router.post("/detections", response_model=WorkflowResponse)
 def run_detection_workflow(db: Session = Depends(get_db)) -> WorkflowResponse:
     with db.begin():
-        result = run_detections(db)
+        result = run_detections(db, sample_only=True)
 
     return WorkflowResponse(
         status="success",
@@ -51,7 +51,7 @@ def run_detection_workflow(db: Session = Depends(get_db)) -> WorkflowResponse:
 @router.post("/incidents", response_model=WorkflowResponse)
 def run_incident_workflow(db: Session = Depends(get_db)) -> WorkflowResponse:
     with db.begin():
-        result = run_incident_correlation(db)
+        result = run_incident_correlation(db, sample_only=True)
 
     return WorkflowResponse(
         status="success",
@@ -71,8 +71,8 @@ def run_all_workflows(db: Session = Depends(get_db)) -> WorkflowResponse:
 
     with db.begin():
         etl_result = run_etl(data_dir=data_dir, session=db)
-        detection_result = run_detections(db)
-        incident_result = run_incident_correlation(db)
+        detection_result = run_detections(db, sample_only=True)
+        incident_result = run_incident_correlation(db, sample_only=True)
 
     return WorkflowResponse(
         status="success",

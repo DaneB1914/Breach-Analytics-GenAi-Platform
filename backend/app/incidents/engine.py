@@ -3,19 +3,32 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Alert, IncidentEvent
+from app.db.models import Alert, IncidentEvent, NormalizedEvent
 from app.incidents.correlation import build_incident, group_related_alerts
 from app.incidents.schemas import IncidentCorrelationResult, IncidentGroup
 
 
-def run_incident_correlation(session: Session) -> IncidentCorrelationResult:
+def run_incident_correlation(
+    session: Session,
+    dataset_id: int | None = None,
+    sample_only: bool = False,
+) -> IncidentCorrelationResult:
     """Create incidents from alerts that have not been assigned yet."""
+
+    statement = select(Alert).where(Alert.incident_id.is_(None))
+    if dataset_id is not None or sample_only:
+        statement = statement.join(
+            NormalizedEvent,
+            Alert.normalized_event_id == NormalizedEvent.id,
+        )
+        if dataset_id is not None:
+            statement = statement.where(NormalizedEvent.uploaded_dataset_id == dataset_id)
+        else:
+            statement = statement.where(NormalizedEvent.uploaded_dataset_id.is_(None))
 
     unassigned_alerts = list(
         session.scalars(
-            select(Alert)
-            .where(Alert.incident_id.is_(None))
-            .order_by(Alert.first_seen, Alert.id)
+            statement.order_by(Alert.first_seen, Alert.id)
         )
     )
     groups = group_related_alerts(unassigned_alerts)
@@ -32,6 +45,11 @@ def run_incident_correlation(session: Session) -> IncidentCorrelationResult:
 
         alerts_linked += assign_alerts_to_incident(group, incident.id)
         incident_events_linked += add_incident_event_links(session, group, incident.id)
+
+    # The app uses autoflush=False. Flush here so any follow-up step in the
+    # same transaction, such as summary generation, can see incident links.
+    if incidents_created or alerts_linked or incident_events_linked:
+        session.flush()
 
     return IncidentCorrelationResult(
         alerts_analyzed=len(unassigned_alerts),

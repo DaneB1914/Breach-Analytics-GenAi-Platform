@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
-from app.db.models import NormalizedEvent
+from typing import Any
+
+from app.db.models import Alert, NormalizedEvent
+from app.detections.engine import run_detections
 from app.detections.rules import (
     API_DOWNLOAD_RULE,
     BRUTE_FORCE_RULE,
@@ -120,6 +123,23 @@ def test_detects_multiple_high_severity_events_by_same_user() -> None:
     assert alerts[0].related_event_ids == [1, 2, 3]
 
 
+def test_run_detections_flushes_created_alerts_for_follow_up_workflow_steps() -> None:
+    session = FakeDetectionSession(
+        [
+            event(1, minutes=0, outcome="failure"),
+            event(2, minutes=1, outcome="failure"),
+            event(3, minutes=2, outcome="failure"),
+            event(4, minutes=4, outcome="success"),
+        ]
+    )
+
+    result = run_detections(session)  # type: ignore[arg-type]
+
+    assert result.alerts_created == 2
+    assert len(session.added_alerts) == 2
+    assert session.flush_count == 1
+
+
 def event(
     event_id: int,
     minutes: int = 0,
@@ -226,3 +246,35 @@ def endpoint_event(
         mitre_technique_id=mitre_technique_id,
         normalized_message="Endpoint test event",
     )
+
+
+class FakeScalarResult:
+    def __init__(self, items: list[Any]) -> None:
+        self.items = items
+
+    def __iter__(self):
+        return iter(self.items)
+
+    def all(self) -> list[Any]:
+        return self.items
+
+
+class FakeDetectionSession:
+    def __init__(self, events: list[NormalizedEvent]) -> None:
+        self.events = events
+        self.added_alerts: list[Alert] = []
+        self.flush_count = 0
+
+    def scalars(self, statement) -> FakeScalarResult:
+        entity = statement.column_descriptions[0]["entity"]
+        if entity is NormalizedEvent:
+            return FakeScalarResult(self.events)
+        if entity is Alert:
+            return FakeScalarResult([])
+        return FakeScalarResult([])
+
+    def add(self, item: Alert) -> None:
+        self.added_alerts.append(item)
+
+    def flush(self) -> None:
+        self.flush_count += 1

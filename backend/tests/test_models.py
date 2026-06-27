@@ -17,6 +17,8 @@ def test_expected_tables_are_registered() -> None:
         "incidents",
         "incident_events",
         "llm_summaries",
+        "uploaded_datasets",
+        "uploaded_files",
     }
 
 
@@ -24,6 +26,7 @@ def test_breach_analytics_columns_are_available() -> None:
     expected_columns = {
         "raw_events": {
             "id",
+            "uploaded_dataset_id",
             "ingested_at",
             "event_timestamp",
             "source_system",
@@ -33,6 +36,7 @@ def test_breach_analytics_columns_are_available() -> None:
         "normalized_events": {
             "id",
             "raw_event_id",
+            "uploaded_dataset_id",
             "normalized_at",
             "event_timestamp",
             "source_system",
@@ -96,6 +100,24 @@ def test_breach_analytics_columns_are_available() -> None:
             "suspected_attack_path",
             "recommended_containment_steps",
             "evidence_event_ids",
+        },
+        "uploaded_datasets": {
+            "id",
+            "name",
+            "description",
+            "created_at",
+            "status",
+            "source_type",
+            "record_count",
+        },
+        "uploaded_files": {
+            "id",
+            "dataset_id",
+            "original_filename",
+            "stored_path",
+            "content_type",
+            "size_bytes",
+            "uploaded_at",
         },
     }
 

@@ -106,7 +106,7 @@ def test_workflow_endpoints_return_success(client: TestClient, monkeypatch: pyte
     monkeypatch.setattr(
         workflow_routes,
         "run_detections",
-        lambda session: SimpleNamespace(
+        lambda session, **kwargs: SimpleNamespace(
             events_analyzed=49,
             alerts_created=8,
             alerts_skipped=0,
@@ -115,7 +115,7 @@ def test_workflow_endpoints_return_success(client: TestClient, monkeypatch: pyte
     monkeypatch.setattr(
         workflow_routes,
         "run_incident_correlation",
-        lambda session: SimpleNamespace(
+        lambda session, **kwargs: SimpleNamespace(
             alerts_analyzed=8,
             incidents_created=1,
             alerts_linked=8,

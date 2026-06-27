@@ -4,6 +4,7 @@ import type {
   IncidentDetail,
   IncidentRecord,
   LLMSummary,
+  UploadedDatasetRecord,
   WorkflowResponse
 } from "./types";
 
@@ -37,6 +38,10 @@ export async function getIncidents(limit = 50): Promise<IncidentRecord[]> {
   return fetchApi<IncidentRecord[]>(`/incidents?limit=${limit}`);
 }
 
+export async function getUploads(): Promise<UploadedDatasetRecord[]> {
+  return fetchApi<UploadedDatasetRecord[]>("/uploads");
+}
+
 export async function getIncident(incidentId: number): Promise<IncidentDetail> {
   return fetchApi<IncidentDetail>(`/incidents/${incidentId}`);
 }
@@ -62,6 +67,21 @@ export async function runWorkflow(
   return fetchApi<WorkflowResponse>(`/workflow/${step}`, { method: "POST" });
 }
 
+export async function uploadDataset(formData: FormData): Promise<UploadedDatasetRecord> {
+  return fetchApi<UploadedDatasetRecord>("/uploads", {
+    method: "POST",
+    body: formData
+  });
+}
+
+export async function normalizeUploadedDataset(datasetId: number): Promise<WorkflowResponse> {
+  return fetchApi<WorkflowResponse>(`/uploads/${datasetId}/normalize`, { method: "POST" });
+}
+
+export async function runUploadedDatasetWorkflow(datasetId: number): Promise<WorkflowResponse> {
+  return fetchApi<WorkflowResponse>(`/uploads/${datasetId}/run-workflow`, { method: "POST" });
+}
+
 export async function getSummaryCount(incidents: IncidentRecord[]): Promise<number> {
   const results = await Promise.allSettled(
     incidents.map((incident) => getIncidentSummary(incident.id))
@@ -71,18 +91,29 @@ export async function getSummaryCount(incidents: IncidentRecord[]): Promise<numb
 }
 
 async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     cache: "no-store",
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(init?.headers || {})
     }
   });
 
   if (!response.ok) {
-    throw new ApiError(`FastAPI request failed for ${path}`, response.status);
+    const detail = await readErrorDetail(response);
+    throw new ApiError(detail || `FastAPI request failed for ${path}`, response.status);
   }
 
   return response.json() as Promise<T>;
+}
+
+async function readErrorDetail(response: Response): Promise<string | null> {
+  try {
+    const payload = await response.json();
+    return typeof payload.detail === "string" ? payload.detail : null;
+  } catch {
+    return null;
+  }
 }

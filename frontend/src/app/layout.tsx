@@ -21,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
               </Link>
               <nav className="nav-links" aria-label="Primary navigation">
                 <Link href="/#workflow">Workflow</Link>
+                <Link href="/#uploads">Uploads</Link>
                 <Link href="/#events">Events</Link>
                 <Link href="/#alerts">Alerts</Link>
                 <Link href="/#incidents">Incidents</Link>

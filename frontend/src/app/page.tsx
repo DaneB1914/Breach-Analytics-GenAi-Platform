@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { SeverityBadge } from "@/components/SeverityBadge";
+import { UploadPanel } from "@/components/UploadPanel";
 import { WorkflowPanel } from "@/components/WorkflowPanel";
 import { displayValue, formatDate } from "@/lib/format";
-import { getAlerts, getEvents, getIncidents, getSummaryCount } from "@/lib/api";
-import type { AlertRecord, EventRecord, IncidentRecord } from "@/lib/types";
+import { getAlerts, getEvents, getIncidents, getSummaryCount, getUploads } from "@/lib/api";
+import type { AlertRecord, EventRecord, IncidentRecord, UploadedDatasetRecord } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,7 @@ type DashboardData = {
   events: EventRecord[];
   alerts: AlertRecord[];
   incidents: IncidentRecord[];
+  uploads: UploadedDatasetRecord[];
   summaryCount: number;
   error: string | null;
 };
@@ -37,10 +39,15 @@ export default async function DashboardPage() {
         <Metric label="Alerts" value={data.alerts.length} />
         <Metric label="Incidents" value={data.incidents.length} />
         <Metric label="LLM summaries" value={data.summaryCount} />
+        <Metric label="Uploaded datasets" value={data.uploads.length} />
       </section>
 
       <section className="section">
         <WorkflowPanel />
+      </section>
+
+      <section className="section">
+        <UploadPanel datasets={data.uploads} />
       </section>
 
       <section className="section" id="events">
@@ -78,19 +85,21 @@ export default async function DashboardPage() {
 
 async function loadDashboardData(): Promise<DashboardData> {
   try {
-    const [events, alerts, incidents] = await Promise.all([
+    const [events, alerts, incidents, uploads] = await Promise.all([
       getEvents(500),
       getAlerts(500),
-      getIncidents(500)
+      getIncidents(500),
+      getUploads()
     ]);
     const summaryCount = await getSummaryCount(incidents);
 
-    return { events, alerts, incidents, summaryCount, error: null };
+    return { events, alerts, incidents, uploads, summaryCount, error: null };
   } catch (error) {
     return {
       events: [],
       alerts: [],
       incidents: [],
+      uploads: [],
       summaryCount: 0,
       error:
         error instanceof Error

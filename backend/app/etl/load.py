@@ -49,6 +49,11 @@ def load_extracted_records(
         session.add(build_normalized_event(raw_event.id, normalized_record))
         normalized_inserted += 1
 
+    # Workflow endpoints run ETL, detections, and correlation in one transaction
+    # with autoflush=False. Flush so later steps can see all inserted events.
+    if raw_inserted or normalized_inserted:
+        session.flush()
+
     return ETLResult(
         processed=len(extracted_records),
         raw_inserted=raw_inserted,

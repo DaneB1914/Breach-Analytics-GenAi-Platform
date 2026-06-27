@@ -16,6 +16,10 @@ class RawEvent(Base):
     __tablename__ = "raw_events"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    uploaded_dataset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
+        index=True,
+    )
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -26,6 +30,7 @@ class RawEvent(Base):
     event_type: Mapped[str] = mapped_column(String(100), index=True)
     raw_payload: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
+    uploaded_dataset: Mapped[UploadedDataset | None] = relationship(back_populates="raw_events")
     normalized_events: Mapped[list[NormalizedEvent]] = relationship(
         back_populates="raw_event",
         cascade="all, delete-orphan",
@@ -40,6 +45,10 @@ class NormalizedEvent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     raw_event_id: Mapped[int] = mapped_column(
         ForeignKey("raw_events.id", ondelete="CASCADE"),
+        index=True,
+    )
+    uploaded_dataset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
         index=True,
     )
     normalized_at: Mapped[datetime] = mapped_column(
@@ -61,6 +70,7 @@ class NormalizedEvent(Base):
     normalized_message: Mapped[str | None] = mapped_column(Text)
 
     raw_event: Mapped[RawEvent] = relationship(back_populates="normalized_events")
+    uploaded_dataset: Mapped[UploadedDataset | None] = relationship(back_populates="normalized_events")
     alerts: Mapped[list[Alert]] = relationship(back_populates="normalized_event")
     incident_links: Mapped[list[IncidentEvent]] = relationship(
         back_populates="normalized_event",
@@ -225,3 +235,57 @@ class LLMSummary(Base):
     )
 
     incident: Mapped[Incident] = relationship(back_populates="llm_summaries")
+
+
+class UploadedDataset(Base):
+    """Metadata for one analyst-uploaded log dataset."""
+
+    __tablename__ = "uploaded_datasets"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    status: Mapped[str] = mapped_column(
+        String(50),
+        server_default=text("'uploaded'"),
+        nullable=False,
+        index=True,
+    )
+    source_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    record_count: Mapped[int] = mapped_column(server_default=text("0"), nullable=False)
+
+    files: Mapped[list[UploadedFile]] = relationship(
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+    )
+    raw_events: Mapped[list[RawEvent]] = relationship(back_populates="uploaded_dataset")
+    normalized_events: Mapped[list[NormalizedEvent]] = relationship(back_populates="uploaded_dataset")
+
+
+class UploadedFile(Base):
+    """File metadata for a CSV, JSON array, or newline-delimited JSON upload."""
+
+    __tablename__ = "uploaded_files"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    stored_path: Mapped[str] = mapped_column(Text, nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(255))
+    size_bytes: Mapped[int] = mapped_column(nullable=False)
+    uploaded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+    dataset: Mapped[UploadedDataset] = relationship(back_populates="files")
