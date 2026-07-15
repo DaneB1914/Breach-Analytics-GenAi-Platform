@@ -88,6 +88,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 - Incident correlation engine that groups related alerts and evidence
 - REST API for events, alerts, incidents, workflow execution, and summaries
 - Optional LLM-style summary workflow with deterministic mock fallback
+- Downloadable Markdown incident investigation reports
 - Next.js dashboard for reviewing workflow results
 - Dockerized full-stack local environment
 - pytest coverage for backend models, ETL, detections, incidents, API endpoints, and summaries
@@ -175,7 +176,8 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/workflow/run-all
 7. Review the incidents section to show correlated alerts grouped into an investigation.
 8. Open an incident detail view and generate the LLM incident summary.
 9. Review the summary panel to show executive summary, technical summary, timeline, containment steps, and evidence event IDs.
-10. Open `http://127.0.0.1:8000/docs` to show the FastAPI endpoints and typed API contracts.
+10. Select **Export Report** to download the incident investigation as Markdown.
+11. Open `http://127.0.0.1:8000/docs` to show the FastAPI endpoints and typed API contracts.
 
 ## Analyst Upload Workflow
 
@@ -236,6 +238,7 @@ Key endpoints:
 - `POST /uploads/{dataset_id}/run-workflow`
 - `POST /incidents/{incident_id}/summarize`
 - `GET /incidents/{incident_id}/summary`
+- `GET /incidents/{incident_id}/report`
 
 Interactive API documentation is available at:
 
@@ -252,6 +255,28 @@ Invoke-RestMethod "http://127.0.0.1:8000/alerts?severity=high"
 Invoke-RestMethod "http://127.0.0.1:8000/incidents?status=open"
 Invoke-RestMethod -Method Post http://127.0.0.1:8000/incidents/1/summarize
 Invoke-RestMethod http://127.0.0.1:8000/incidents/1/summary
+```
+
+## Incident Report Export
+
+The incident detail page includes an **Export Report** button. It downloads a Markdown investigation report containing:
+
+- Incident overview, severity, status, affected user, and affected assets
+- Latest executive and technical summaries when available
+- Attack timeline and triggered alerts
+- Evidence event IDs
+- Recommended containment steps
+- Analyst notes placeholder
+- Report limitations
+
+The report still exports when no LLM summary exists; it uses incident and evidence data with clear fallback text.
+
+Download a report through PowerShell:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/incidents/1/report `
+  -OutFile .\incident-1-report.md
 ```
 
 ## Screenshots
@@ -349,6 +374,7 @@ docker compose exec backend alembic current
 - The generic upload normalizer handles common field names but cannot fully understand every vendor-specific schema yet.
 - Detection rules are deterministic examples intended for portfolio demonstration, not a replacement for a production SIEM or managed detection platform.
 - The LLM workflow defaults to deterministic mock mode so the project runs reliably without paid API access or external network dependencies.
+- Incident reports currently export as Markdown only; PDF rendering remains a future improvement.
 - Authentication, authorization, audit logging, and production-grade secrets management are not implemented yet.
 - The Docker Compose setup is optimized for local review and development, not hardened cloud deployment.
 

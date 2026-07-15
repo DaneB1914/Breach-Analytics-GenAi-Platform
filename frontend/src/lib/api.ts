@@ -46,6 +46,27 @@ export async function getIncident(incidentId: number): Promise<IncidentDetail> {
   return fetchApi<IncidentDetail>(`/incidents/${incidentId}`);
 }
 
+export async function getIncidentReport(
+  incidentId: number
+): Promise<{ content: string; filename: string }> {
+  const response = await fetch(`${API_BASE_URL}/incidents/${incidentId}/report`, {
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    const detail = await readErrorDetail(response);
+    throw new ApiError(detail || "Incident report request failed", response.status);
+  }
+
+  const disposition = response.headers.get("content-disposition") || "";
+  const filenameMatch = disposition.match(/filename="?([^";]+)"?/i);
+
+  return {
+    content: await response.text(),
+    filename: filenameMatch?.[1] || `incident-${incidentId}-report.md`
+  };
+}
+
 export async function summarizeIncident(incidentId: number): Promise<LLMSummary> {
   return fetchApi<LLMSummary>(`/incidents/${incidentId}/summarize`, { method: "POST" });
 }

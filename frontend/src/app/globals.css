@@ -274,6 +274,18 @@ h3 {
   justify-content: flex-start;
 }
 
+.report-export {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.report-export .message {
+  margin-top: 0;
+}
+
 .table-actions {
   display: flex;
   flex-wrap: wrap;

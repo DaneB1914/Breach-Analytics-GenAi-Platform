@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy import Select, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -13,6 +14,7 @@ from app.api.schemas import (
     LLMSummaryResponse,
 )
 from app.db.models import Incident, IncidentEvent
+from app.reports.service import generate_incident_markdown_report
 from app.summaries.service import generate_and_store_summary, get_latest_summary
 
 router = APIRouter(tags=["incidents"])
@@ -83,6 +85,20 @@ def get_incident_summary(incident_id: int, db: Session = Depends(get_db)) -> LLM
         raise HTTPException(status_code=404, detail="Summary not found")
 
     return LLMSummaryResponse.model_validate(summary)
+
+
+@router.get("/incidents/{incident_id}/report")
+def export_incident_report(incident_id: int, db: Session = Depends(get_db)) -> Response:
+    report = generate_incident_markdown_report(db, incident_id)
+    if report is None:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    filename = f"incident-{incident_id}-report.md"
+    return Response(
+        content=report,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 def apply_incident_filters(

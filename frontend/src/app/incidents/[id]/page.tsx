@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ReportExportButton } from "@/components/ReportExportButton";
 import { SeverityBadge } from "@/components/SeverityBadge";
 import { SummaryPanel } from "@/components/SummaryPanel";
 import { displayValue, formatDate } from "@/lib/format";
@@ -36,6 +37,7 @@ export default async function IncidentDetailPage({
         <div className="eyebrow">Incident Detail</div>
         <h1>{incident.title}</h1>
         <p className="lede">{incident.description || "Correlated incident from alert and event evidence."}</p>
+        <ReportExportButton incidentId={incident.id} />
       </section>
 
       <section className="split-grid">

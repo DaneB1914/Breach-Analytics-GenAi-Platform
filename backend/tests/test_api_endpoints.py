@@ -81,6 +81,7 @@ def test_missing_event_alert_and_incident_return_404(client: TestClient) -> None
     assert client.get("/incidents/999").status_code == 404
     assert client.post("/incidents/999/summarize").status_code == 404
     assert client.get("/incidents/999/summary").status_code == 404
+    assert client.get("/incidents/999/report").status_code == 404
 
 
 def test_get_summary_returns_latest_stored_summary(client: TestClient) -> None:
@@ -89,6 +90,16 @@ def test_get_summary_returns_latest_stored_summary(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["executive_summary"] == "Latest summary"
     assert response.json()["evidence_event_ids"] == [1]
+
+
+def test_get_incident_report_returns_markdown_download(client: TestClient) -> None:
+    response = client.get("/incidents/1/report")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/markdown")
+    assert response.headers["content-disposition"] == 'attachment; filename="incident-1-report.md"'
+    assert "# Incident Investigation Report" in response.text
+    assert "Latest summary" in response.text
 
 
 def test_workflow_endpoints_return_success(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:

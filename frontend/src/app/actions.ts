@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  getIncidentReport,
   normalizeUploadedDataset,
   runUploadedDatasetWorkflow,
   runWorkflow,
@@ -30,6 +31,25 @@ export async function summarizeIncidentAction(incidentId: number) {
       ok: false,
       summary: null,
       message: error instanceof Error ? error.message : "Summary request failed"
+    };
+  }
+}
+
+export async function exportIncidentReportAction(incidentId: number) {
+  try {
+    const report = await getIncidentReport(incidentId);
+    return {
+      ok: true,
+      content: report.content,
+      filename: report.filename,
+      message: "Incident report downloaded"
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      content: null,
+      filename: null,
+      message: error instanceof Error ? error.message : "Report export failed"
     };
   }
 }
