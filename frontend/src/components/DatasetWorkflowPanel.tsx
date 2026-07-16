@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  normalizeUploadedDatasetAction,
   runUploadedDatasetWorkflowAction
 } from "@/app/actions";
 
@@ -18,13 +17,10 @@ export function DatasetWorkflowPanel({
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  function run(action: "normalize" | "workflow") {
+  function run() {
     setMessage(null);
     startTransition(async () => {
-      const result =
-        action === "normalize"
-          ? await normalizeUploadedDatasetAction(datasetId)
-          : await runUploadedDatasetWorkflowAction(datasetId);
+      const result = await runUploadedDatasetWorkflowAction(datasetId);
 
       setMessage({ type: result.ok ? "success" : "error", text: result.message });
       if (result.ok) {
@@ -43,17 +39,9 @@ export function DatasetWorkflowPanel({
       </div>
       <div className="panel-body dataset-workflow-actions">
         <button
-          className="button secondary"
-          disabled={isPending}
-          onClick={() => run("normalize")}
-          type="button"
-        >
-          {isPending ? "Working..." : "Normalize Dataset"}
-        </button>
-        <button
           className="button"
           disabled={isPending}
-          onClick={() => run("workflow")}
+          onClick={run}
           type="button"
         >
           {isPending ? "Working..." : "Run Dataset Workflow"}

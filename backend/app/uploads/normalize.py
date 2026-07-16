@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
+from typing import Any, Mapping
 
 from app.etl.schemas import NormalizedRecord
 
@@ -15,8 +16,62 @@ SOURCE_SYSTEM_DEFAULTS = {
 }
 
 
-def normalize_uploaded_record(record: dict[str, Any], source_type: str) -> NormalizedRecord:
-    """Map common log field names into the existing NormalizedEvent schema."""
+@dataclass(frozen=True)
+class FieldMappingRule:
+    source_field: str
+    transformation_type: str = "direct"
+    default_value: str | None = None
+
+
+def normalize_uploaded_record(
+    record: dict[str, Any],
+    source_type: str,
+    field_mappings: Mapping[str, FieldMappingRule] | None = None,
+) -> NormalizedRecord:
+    """Apply confirmed mappings first, then keep safe automatic fallbacks."""
+
+    automatic = normalize_automatically(record, source_type)
+    if not field_mappings:
+        return automatic
+
+    cleaned_source_type = source_type.strip().lower() or "generic"
+
+    return NormalizedRecord(
+        timestamp=mapped_timestamp(record, field_mappings.get("timestamp"), automatic.timestamp),
+        source_system=mapped_text(
+            record,
+            field_mappings.get("source_system"),
+            automatic.source_system,
+        )
+        or SOURCE_SYSTEM_DEFAULTS.get(cleaned_source_type, SOURCE_SYSTEM_DEFAULTS["generic"]),
+        event_type=mapped_text(
+            record,
+            field_mappings.get("event_type"),
+            automatic.event_type,
+        )
+        or "uploaded_event",
+        username=mapped_text(record, field_mappings.get("username"), automatic.username),
+        source_ip=mapped_text(record, field_mappings.get("source_ip"), automatic.source_ip),
+        destination_ip=mapped_text(
+            record,
+            field_mappings.get("destination_ip"),
+            automatic.destination_ip,
+        ),
+        asset=mapped_text(record, field_mappings.get("asset"), automatic.asset),
+        action=mapped_text(record, field_mappings.get("action"), automatic.action),
+        outcome=mapped_text(record, field_mappings.get("outcome"), automatic.outcome),
+        severity=mapped_lower_text(record, field_mappings.get("severity"), automatic.severity),
+        mitre_technique_id=mapped_text(
+            record,
+            field_mappings.get("mitre_technique_id"),
+            automatic.mitre_technique_id,
+        ),
+        message=mapped_text(record, field_mappings.get("message"), automatic.message),
+    )
+
+
+def normalize_automatically(record: dict[str, Any], source_type: str) -> NormalizedRecord:
+    """Map recognized aliases into the normalized event schema."""
 
     cleaned_source_type = source_type.strip().lower() or "generic"
     action = infer_action(record)
@@ -25,7 +80,20 @@ def normalize_uploaded_record(record: dict[str, Any], source_type: str) -> Norma
     asset = first_clean(record, "asset", "host", "hostname", "device_name", "device", "target_resource", "resource")
 
     return NormalizedRecord(
-        timestamp=safe_parse_timestamp(first_value(record, "timestamp", "time", "event_time", "observed_at", "datetime")),
+        timestamp=safe_parse_timestamp(
+            first_value(
+                record,
+                "timestamp",
+                "time",
+                "event_time",
+                "eventTime",
+                "activityDateTime",
+                "published",
+                "createdDateTime",
+                "observed_at",
+                "datetime",
+            )
+        ),
         source_system=infer_source_system(record, cleaned_source_type),
         event_type=event_type,
         username=username,
@@ -112,9 +180,65 @@ def infer_message(
 
 def first_value(record: dict[str, Any], *keys: str) -> Any:
     for key in keys:
-        if key in record and record[key] not in (None, ""):
-            return record[key]
+        value = get_dotted_value(record, key)
+        if value not in (None, ""):
+            return value
     return None
+
+
+def get_dotted_value(record: dict[str, Any], path: str) -> Any:
+    if path in record:
+        return record[path]
+
+    value: Any = record
+    for part in path.split("."):
+        if not isinstance(value, dict) or part not in value:
+            return None
+        value = value[part]
+    return value
+
+
+def mapped_timestamp(
+    record: dict[str, Any],
+    rule: FieldMappingRule | None,
+    automatic_value: datetime | None,
+) -> datetime | None:
+    if rule is None:
+        return automatic_value
+    return safe_parse_timestamp(mapped_value(record, rule))
+
+
+def mapped_text(
+    record: dict[str, Any],
+    rule: FieldMappingRule | None,
+    automatic_value: str | None,
+) -> str | None:
+    if rule is None:
+        return automatic_value
+    return clean(mapped_value(record, rule))
+
+
+def mapped_lower_text(
+    record: dict[str, Any],
+    rule: FieldMappingRule | None,
+    automatic_value: str | None,
+) -> str | None:
+    value = mapped_text(record, rule, automatic_value)
+    return value.lower() if value else None
+
+
+def mapped_value(record: dict[str, Any], rule: FieldMappingRule) -> Any:
+    value = get_dotted_value(record, rule.source_field)
+    if value in (None, ""):
+        value = rule.default_value
+
+    if value is None:
+        return None
+    if rule.transformation_type == "lowercase":
+        return str(value).lower()
+    if rule.transformation_type == "uppercase":
+        return str(value).upper()
+    return value
 
 
 def first_clean(record: dict[str, Any], *keys: str) -> str | None:

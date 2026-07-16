@@ -1,0 +1,34 @@
+[
+  {
+    "activityDateTime": "2026-07-15T14:02:18Z",
+    "userPrincipalName": "alex.morgan@example.test",
+    "ipAddress": "203.0.113.41",
+    "appDisplayName": "Microsoft 365 Portal",
+    "riskEventType": "unfamiliarFeatures",
+    "riskLevelDuringSignIn": "high",
+    "deviceDetail": {
+      "displayName": "LAPTOP-ALEX-01",
+      "operatingSystem": "Windows 11"
+    },
+    "status": {
+      "errorCode": 50126,
+      "failureReason": "Invalid username or password"
+    }
+  },
+  {
+    "activityDateTime": "2026-07-15T14:04:51Z",
+    "userPrincipalName": "alex.morgan@example.test",
+    "ipAddress": "203.0.113.41",
+    "appDisplayName": "Microsoft 365 Portal",
+    "riskEventType": "unfamiliarFeatures",
+    "riskLevelDuringSignIn": "high",
+    "deviceDetail": {
+      "displayName": "LAPTOP-ALEX-01",
+      "operatingSystem": "Windows 11"
+    },
+    "status": {
+      "errorCode": 0,
+      "failureReason": "None"
+    }
+  }
+]

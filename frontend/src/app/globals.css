@@ -335,6 +335,114 @@ h3 {
   margin-top: 2px;
 }
 
+.mapping-header {
+  align-items: flex-start;
+}
+
+.mapping-header h2 {
+  margin-top: 3px;
+}
+
+.mapping-requirement {
+  display: grid;
+  gap: 2px;
+  min-width: 190px;
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  font-size: 13px;
+}
+
+.mapping-requirement span,
+.mapping-help {
+  color: var(--muted);
+}
+
+.mapping-body,
+.mapping-preview {
+  display: grid;
+  gap: 14px;
+}
+
+.mapping-lock-message,
+.mapping-preview .message {
+  margin-top: 0;
+}
+
+.mapping-table {
+  min-width: 920px;
+}
+
+.mapping-table td:first-child {
+  max-width: 240px;
+  overflow-wrap: anywhere;
+}
+
+.sample-values {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  max-width: 300px;
+  overflow-wrap: anywhere;
+}
+
+.sample-values span {
+  color: #475569;
+  font-size: 12px;
+}
+
+.mapping-suggestion {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mapping-select {
+  width: 100%;
+  min-width: 190px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--text);
+  padding: 8px 10px;
+}
+
+.mapping-help {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mapping-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mapping-preview {
+  margin-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.mapping-preview table {
+  min-width: 1600px;
+}
+
+.mapping-preview td {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .empty-state {
   border: 1px dashed var(--border);
   border-radius: 8px;

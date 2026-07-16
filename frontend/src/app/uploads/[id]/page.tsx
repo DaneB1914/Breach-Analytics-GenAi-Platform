@@ -1,15 +1,20 @@
 import Link from "next/link";
 import { DatasetWorkflowPanel } from "@/components/DatasetWorkflowPanel";
+import { FieldMappingPanel } from "@/components/FieldMappingPanel";
 import { AlertsTable, EventsTable, IncidentsTable } from "@/components/InvestigationTables";
 import { displayValue, formatDate } from "@/lib/format";
 import {
   getDatasetAlerts,
   getDatasetEvents,
   getDatasetIncidents,
+  getDatasetMappings,
+  getDatasetSchema,
   getUpload
 } from "@/lib/api";
 import type {
   AlertRecord,
+  DatasetFieldMapping,
+  DatasetSchema,
   EventRecord,
   IncidentRecord,
   UploadedDatasetRecord
@@ -22,6 +27,8 @@ type DatasetPageData = {
   events: EventRecord[];
   alerts: AlertRecord[];
   incidents: IncidentRecord[];
+  schema: DatasetSchema | null;
+  mappings: DatasetFieldMapping[];
   error: string | null;
 };
 
@@ -46,7 +53,9 @@ export default async function DatasetDetailPage({
   }
 
   const dataset = data.dataset;
-  const needsNormalization = dataset.status === "uploaded";
+  const needsNormalization = ["uploaded", "mapping_required", "ready_to_normalize"].includes(
+    dataset.status
+  );
   const needsAnalysis = dataset.status === "normalized" && data.incidents.length === 0;
 
   return (
@@ -67,7 +76,8 @@ export default async function DatasetDetailPage({
 
       {needsNormalization ? (
         <div className="message warning">
-          This dataset has not been normalized yet. Select Normalize Dataset or run the full dataset workflow.
+          This dataset has not been normalized yet. Confirm the timestamp mapping, preview the
+          normalized records, and then select Normalize Dataset.
         </div>
       ) : null}
       {needsAnalysis ? (
@@ -93,6 +103,16 @@ export default async function DatasetDetailPage({
         </div>
         <DatasetWorkflowPanel datasetId={dataset.id} datasetName={dataset.name} />
       </section>
+
+      {data.schema ? (
+        <FieldMappingPanel
+          datasetId={dataset.id}
+          datasetName={dataset.name}
+          datasetStatus={dataset.status}
+          savedMappings={data.mappings}
+          schema={data.schema}
+        />
+      ) : null}
 
       <section className="section">
         <div className="section-header">
@@ -139,19 +159,23 @@ export default async function DatasetDetailPage({
 
 async function loadDatasetPageData(datasetId: number): Promise<DatasetPageData> {
   try {
-    const [dataset, events, alerts, incidents] = await Promise.all([
+    const [dataset, events, alerts, incidents, schema, mappings] = await Promise.all([
       getUpload(datasetId),
       getDatasetEvents(datasetId),
       getDatasetAlerts(datasetId),
-      getDatasetIncidents(datasetId)
+      getDatasetIncidents(datasetId),
+      getDatasetSchema(datasetId),
+      getDatasetMappings(datasetId)
     ]);
-    return { dataset, events, alerts, incidents, error: null };
+    return { dataset, events, alerts, incidents, schema, mappings, error: null };
   } catch (error) {
     return {
       dataset: null,
       events: [],
       alerts: [],
       incidents: [],
+      schema: null,
+      mappings: [],
       error:
         error instanceof Error
           ? `Could not load dataset ${datasetId}: ${error.message}`

@@ -1,9 +1,13 @@
 import type {
   AlertRecord,
+  DatasetFieldMapping,
+  DatasetFieldMappingInput,
+  DatasetSchema,
   EventRecord,
   IncidentDetail,
   IncidentRecord,
   LLMSummary,
+  MappingPreviewResponse,
   UploadedDatasetRecord,
   WorkflowResponse
 } from "./types";
@@ -44,6 +48,35 @@ export async function getUploads(): Promise<UploadedDatasetRecord[]> {
 
 export async function getUpload(datasetId: number): Promise<UploadedDatasetRecord> {
   return fetchApi<UploadedDatasetRecord>(`/uploads/${datasetId}`);
+}
+
+export async function getDatasetSchema(datasetId: number): Promise<DatasetSchema> {
+  return fetchApi<DatasetSchema>(`/uploads/${datasetId}/schema`);
+}
+
+export async function getDatasetMappings(datasetId: number): Promise<DatasetFieldMapping[]> {
+  return fetchApi<DatasetFieldMapping[]>(`/uploads/${datasetId}/mappings`);
+}
+
+export async function saveDatasetMappings(
+  datasetId: number,
+  mappings: DatasetFieldMappingInput[]
+): Promise<DatasetFieldMapping[]> {
+  return fetchApi<DatasetFieldMapping[]>(`/uploads/${datasetId}/mappings`, {
+    method: "PUT",
+    body: JSON.stringify({ mappings })
+  });
+}
+
+export async function previewDatasetMappings(
+  datasetId: number,
+  mappings: DatasetFieldMappingInput[],
+  limit = 3
+): Promise<MappingPreviewResponse> {
+  return fetchApi<MappingPreviewResponse>(`/uploads/${datasetId}/mapping-preview`, {
+    method: "POST",
+    body: JSON.stringify({ mappings, limit })
+  });
 }
 
 export async function getDatasetEvents(datasetId: number, limit = 500): Promise<EventRecord[]> {

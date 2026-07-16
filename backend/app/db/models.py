@@ -277,6 +277,10 @@ class UploadedDataset(Base):
         back_populates="dataset",
         cascade="all, delete-orphan",
     )
+    field_mappings: Mapped[list[DatasetFieldMapping]] = relationship(
+        back_populates="dataset",
+        cascade="all, delete-orphan",
+    )
     raw_events: Mapped[list[RawEvent]] = relationship(back_populates="uploaded_dataset")
     normalized_events: Mapped[list[NormalizedEvent]] = relationship(back_populates="uploaded_dataset")
     alerts: Mapped[list[Alert]] = relationship(back_populates="dataset")
@@ -305,3 +309,49 @@ class UploadedFile(Base):
     )
 
     dataset: Mapped[UploadedDataset] = relationship(back_populates="files")
+
+
+class DatasetFieldMapping(Base):
+    """Analyst-confirmed source-to-normalized field mapping for one dataset."""
+
+    __tablename__ = "dataset_field_mappings"
+    __table_args__ = (
+        UniqueConstraint(
+            "dataset_id",
+            "source_field",
+            name="uq_dataset_field_mappings_dataset_source",
+        ),
+        UniqueConstraint(
+            "dataset_id",
+            "target_field",
+            name="uq_dataset_field_mappings_dataset_target",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    source_field: Mapped[str] = mapped_column(String(255), nullable=False)
+    target_field: Mapped[str] = mapped_column(String(50), nullable=False)
+    transformation_type: Mapped[str] = mapped_column(
+        String(50),
+        server_default=text("'direct'"),
+        nullable=False,
+    )
+    default_value: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    dataset: Mapped[UploadedDataset] = relationship(back_populates="field_mappings")

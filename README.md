@@ -81,6 +81,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 
 - Realistic fake breach data across authentication, VPN, cloud audit, API access, and endpoint alert sources
 - Analyst upload workflow for CSV, JSON arrays, and newline-delimited JSON logs
+- Interactive source-schema inspection, mapping suggestions, analyst overrides, and normalized previews
 - Upload metadata tracking for datasets, files, source type, status, and record counts
 - ETL normalization from mixed JSON and CSV logs into a common security event schema
 - Raw event preservation for auditability
@@ -189,7 +190,7 @@ The app supports two ingestion paths:
 
 Uploaded files are stored in the local `uploads/` directory, which is ignored by Git. Metadata is stored in PostgreSQL through `UploadedDataset` and `UploadedFile` records. Uploaded records are preserved in `RawEvent`, normalized into `NormalizedEvent`, and can then be analyzed by the existing detection, incident correlation, and summary workflow.
 
-Generic normalization maps common field names such as `timestamp`, `username`, `source_ip`, `destination_ip`, `asset`, `action`, `outcome`, `severity`, `mitre_technique_id`, and `message` into the existing event schema. Missing fields are allowed and become null or sensible defaults.
+Generic normalization maps common field names into the existing event schema. An analyst can inspect detected fields, review bounded sample values, edit mapping suggestions, and preview normalized rows before any event is inserted. A parseable `timestamp` is required for committed normalization; other missing fields become null or use documented source defaults.
 
 ### Dataset Isolation
 
@@ -207,6 +208,97 @@ This design preserves existing sample data without creating a synthetic upload r
 Analyst workflow:
 
 **Upload -> Normalize -> Analyze -> Review Incidents -> Summarize -> Export Report**
+
+### Interactive Field Mapping
+
+Open an uploaded dataset from the dashboard to review its source schema. Nested JSON objects are represented with dotted paths such as `deviceDetail.displayName` or `userIdentity.userName`. The mapping table marks suggestions with a confidence label, allows fields to remain unmapped, prevents duplicate target selections, and keeps the active dataset visible throughout the workflow.
+
+The recommended analyst sequence is:
+
+1. Upload a CSV, JSON array, or NDJSON file.
+2. Review detected source fields and sample values.
+3. Confirm or edit the suggested target fields.
+4. Select **Save Mapping** to persist the dataset-specific mapping.
+5. Select **Preview Normalized Records** to validate the result without writing events.
+6. Select **Normalize Dataset**, then run the dataset workflow.
+
+Example Microsoft Entra-style mapping:
+
+| Source field | Normalized target | Requirement |
+| --- | --- | --- |
+| `activityDateTime` | `timestamp` | Required |
+| `userPrincipalName` | `username` | Optional |
+| `ipAddress` | `source_ip` | Optional |
+| `deviceDetail.displayName` | `asset` | Optional |
+| `riskEventType` | `event_type` | Optional |
+| `riskLevelDuringSignIn` | `severity` | Optional |
+| `status.errorCode` | `outcome` | Optional |
+
+Normalized target fields:
+
+- **Required:** `timestamp`, which must contain a parseable date and time.
+- **Optional:** `source_system`, `event_type`, `username`, `source_ip`, `destination_ip`, `asset`, `action`, `outcome`, `severity`, `mitre_technique_id`, and `message`.
+- `source_system` and `event_type` receive source-based defaults when no usable value is mapped.
+
+Mapping precedence is explicit and dataset-scoped:
+
+1. Analyst-confirmed mappings override values for their selected targets.
+2. Targets without explicit mappings use conservative built-in aliases when recognized.
+3. `source_system` and `event_type` use source-type defaults when still empty.
+4. Other optional targets remain null, while every original field stays preserved in `RawEvent`.
+
+Mappings are editable while a dataset is `uploaded`, `mapping_required`, `ready_to_normalize`, or `failed`. They become read-only after normalization so later alerts, summaries, and reports remain reproducible. Two small manual test files are included:
+
+- `data/upload_examples/entra_signins.json`
+- `data/upload_examples/aws_cloudtrail.ndjson`
+
+### Field Mapping API Example
+
+Upload the Entra-style example and inspect its detected schema:
+
+```powershell
+$upload = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/uploads -Form @{
+  name = "Entra Mapping Demo"
+  source_type = "auth"
+  description = "Manual schema mapping test"
+  file = Get-Item .\data\upload_examples\entra_signins.json
+}
+
+$datasetId = $upload.id
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId/schema
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId/mappings
+```
+
+Save an analyst-confirmed mapping and request a non-persistent preview:
+
+```powershell
+$mappingBody = @{
+  mappings = @(
+    @{ source_field = "activityDateTime"; target_field = "timestamp" }
+    @{ source_field = "userPrincipalName"; target_field = "username" }
+    @{ source_field = "ipAddress"; target_field = "source_ip" }
+    @{ source_field = "deviceDetail.displayName"; target_field = "asset" }
+    @{ source_field = "riskEventType"; target_field = "event_type" }
+    @{ source_field = "riskLevelDuringSignIn"; target_field = "severity" }
+    @{ source_field = "status.errorCode"; target_field = "outcome" }
+  )
+} | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method Put `
+  -Uri http://127.0.0.1:8000/uploads/$datasetId/mappings `
+  -ContentType "application/json" `
+  -Body $mappingBody
+
+$previewBody = @{ mappings = ($mappingBody | ConvertFrom-Json).mappings; limit = 3 } |
+  ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/uploads/$datasetId/mapping-preview `
+  -ContentType "application/json" `
+  -Body $previewBody
+
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetId/normalize
+```
 
 ### Upload API Test Commands
 
@@ -321,6 +413,10 @@ Uploaded dataset endpoints enforce the selected investigation scope:
 - `POST /uploads`
 - `GET /uploads`
 - `GET /uploads/{dataset_id}`
+- `GET /uploads/{dataset_id}/schema`
+- `GET /uploads/{dataset_id}/mappings`
+- `PUT /uploads/{dataset_id}/mappings`
+- `POST /uploads/{dataset_id}/mapping-preview`
 - `POST /uploads/{dataset_id}/normalize`
 - `POST /uploads/{dataset_id}/run-workflow`
 - `GET /uploads/{dataset_id}/events`
@@ -472,7 +568,8 @@ docker compose exec backend alembic current
 
 - The included telemetry is realistic but synthetic; no real personal data, customer data, or production logs are used.
 - Uploaded files are stored locally for development review and should not be treated as production evidence storage.
-- The generic upload normalizer handles common field names but cannot fully understand every vendor-specific schema yet.
+- Automatic mapping suggestions are conservative and still require analyst review for vendor-specific or ambiguous fields.
+- Nested objects use dotted paths, but complex nested arrays, multiple files per dataset, unusual encodings, and highly irregular records may require source-specific parsing in a future phase.
 - Dataset deletion is not exposed yet; uploaded investigation data remains in local PostgreSQL until the development environment is reset.
 - Detection rules are deterministic examples intended for portfolio demonstration, not a replacement for a production SIEM or managed detection platform.
 - The LLM workflow defaults to deterministic mock mode so the project runs reliably without paid API access or external network dependencies.

@@ -115,3 +115,69 @@ class UploadedDatasetResponse(BaseModel):
     source_type: str
     record_count: int
     files: list[UploadedFileResponse] = []
+
+
+class SourceFieldSchemaResponse(BaseModel):
+    source_field: str
+    sample_values: list[str]
+    suggested_target_field: str | None = None
+    confidence: str | None = None
+
+
+class DatasetSchemaResponse(BaseModel):
+    dataset_id: int
+    fields: list[SourceFieldSchemaResponse]
+    target_fields: list[str]
+    required_target_fields: list[str]
+    optional_target_fields: list[str]
+
+
+class DatasetFieldMappingInput(BaseModel):
+    source_field: str
+    target_field: str | None = None
+    transformation_type: str = "direct"
+    default_value: str | None = None
+
+
+class DatasetMappingsUpdate(BaseModel):
+    mappings: list[DatasetFieldMappingInput]
+
+
+class DatasetFieldMappingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    dataset_id: int
+    source_field: str
+    target_field: str
+    transformation_type: str
+    default_value: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class MappingPreviewRequest(BaseModel):
+    mappings: list[DatasetFieldMappingInput] | None = None
+    limit: int = 3
+
+
+class NormalizedPreviewRecordResponse(BaseModel):
+    record_number: int
+    timestamp: datetime | None = None
+    source_system: str
+    event_type: str
+    username: str | None = None
+    source_ip: str | None = None
+    destination_ip: str | None = None
+    asset: str | None = None
+    action: str | None = None
+    outcome: str | None = None
+    severity: str | None = None
+    mitre_technique_id: str | None = None
+    message: str | None = None
+
+
+class MappingPreviewResponse(BaseModel):
+    dataset_id: int
+    records: list[NormalizedPreviewRecordResponse]
+    warnings: list[str]

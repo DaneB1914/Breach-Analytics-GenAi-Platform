@@ -100,3 +100,58 @@ export type UploadedDatasetRecord = {
   record_count: number;
   files: UploadedFileRecord[];
 };
+
+export type SourceFieldSchema = {
+  source_field: string;
+  sample_values: string[];
+  suggested_target_field: string | null;
+  confidence: string | null;
+};
+
+export type DatasetSchema = {
+  dataset_id: number;
+  fields: SourceFieldSchema[];
+  target_fields: string[];
+  required_target_fields: string[];
+  optional_target_fields: string[];
+};
+
+export type DatasetFieldMapping = {
+  id: number;
+  dataset_id: number;
+  source_field: string;
+  target_field: string;
+  transformation_type: string;
+  default_value: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type DatasetFieldMappingInput = {
+  source_field: string;
+  target_field: string | null;
+  transformation_type: string;
+  default_value: string | null;
+};
+
+export type NormalizedPreviewRecord = {
+  record_number: number;
+  timestamp: string | null;
+  source_system: string;
+  event_type: string;
+  username: string | null;
+  source_ip: string | null;
+  destination_ip: string | null;
+  asset: string | null;
+  action: string | null;
+  outcome: string | null;
+  severity: string | null;
+  mitre_technique_id: string | null;
+  message: string | null;
+};
+
+export type MappingPreviewResponse = {
+  dataset_id: number;
+  records: NormalizedPreviewRecord[];
+  warnings: string[];
+};

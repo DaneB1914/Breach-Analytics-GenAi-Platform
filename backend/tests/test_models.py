@@ -19,6 +19,7 @@ def test_expected_tables_are_registered() -> None:
         "llm_summaries",
         "uploaded_datasets",
         "uploaded_files",
+        "dataset_field_mappings",
     }
 
 
@@ -120,6 +121,16 @@ def test_breach_analytics_columns_are_available() -> None:
             "content_type",
             "size_bytes",
             "uploaded_at",
+        },
+        "dataset_field_mappings": {
+            "id",
+            "dataset_id",
+            "source_field",
+            "target_field",
+            "transformation_type",
+            "default_value",
+            "created_at",
+            "updated_at",
         },
     }
 

@@ -36,6 +36,9 @@ def parse_upload_records(filename: str, content: bytes) -> list[dict[str, Any]]:
     if suffix == ".csv":
         return parse_csv_records(text)
 
+    if suffix == ".ndjson":
+        return parse_ndjson_records(text)
+
     return parse_json_records(text)
 
 
@@ -45,15 +48,30 @@ def parse_csv_records(text: str) -> list[dict[str, Any]]:
 
 
 def parse_json_records(text: str) -> list[dict[str, Any]]:
-    if text.startswith("[") or text.startswith("{"):
+    try:
         parsed = json.loads(text)
-        if isinstance(parsed, dict):
-            parsed = [parsed]
-        if not isinstance(parsed, list):
-            raise UploadParseError("JSON uploads must contain an object or an array of objects.")
-        return ensure_record_objects(parsed)
+    except json.JSONDecodeError as exc:
+        raise UploadParseError(f"Invalid JSON: {exc.msg} at line {exc.lineno}.") from exc
 
-    records = [json.loads(line) for line in text.splitlines() if line.strip()]
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        raise UploadParseError("JSON uploads must contain an object or an array of objects.")
+    return ensure_record_objects(parsed)
+
+
+def parse_ndjson_records(text: str) -> list[dict[str, Any]]:
+    records: list[Any] = []
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise UploadParseError(
+                f"Invalid NDJSON on line {line_number}: {exc.msg}."
+            ) from exc
+
     return ensure_record_objects(records)
 
 

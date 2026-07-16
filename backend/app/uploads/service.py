@@ -11,8 +11,15 @@ from sqlalchemy.orm import Session
 from app.db.models import Incident, NormalizedEvent, RawEvent, UploadedDataset, UploadedFile
 from app.etl.schemas import ETLResult, NormalizedRecord
 from app.summaries.service import generate_and_store_summary, get_latest_summary
+from app.uploads.mapping import (
+    build_mapping_rules,
+    get_dataset_mappings,
+    inspect_records_schema,
+    mapping_definitions_from_models,
+    schema_has_timestamp_mapping,
+)
 from app.uploads.normalize import normalize_uploaded_record
-from app.uploads.parser import parse_upload_records, validate_source_type
+from app.uploads.parser import UploadParseError, parse_upload_records, validate_source_type
 
 
 @dataclass(frozen=True)
@@ -37,12 +44,17 @@ def create_uploaded_dataset(
 
     cleaned_source_type = validate_source_type(source_type)
     records = parse_upload_records(original_filename, content)
+    source_schema = inspect_records_schema(records)
 
     dataset = UploadedDataset(
         name=name.strip(),
         description=description.strip() if description else None,
         source_type=cleaned_source_type,
-        status="uploaded",
+        status=(
+            "ready_to_normalize"
+            if schema_has_timestamp_mapping(source_schema)
+            else "mapping_required"
+        ),
         record_count=len(records),
     )
     session.add(dataset)
@@ -85,14 +97,28 @@ def normalize_uploaded_dataset(session: Session, dataset: UploadedDataset) -> ET
     normalized_inserted = 0
     skipped_existing = 0
     processed = 0
+    definitions = mapping_definitions_from_models(
+        get_dataset_mappings(session, dataset.id)
+    )
+    mapping_rules = build_mapping_rules(definitions)
 
     for uploaded_file in dataset.files:
         content = Path(uploaded_file.stored_path).read_bytes()
         records = parse_upload_records(uploaded_file.original_filename, content)
         processed += len(records)
 
-        for raw_record in records:
-            normalized_record = normalize_uploaded_record(raw_record, dataset.source_type)
+        for record_index, raw_record in enumerate(records, start=1):
+            normalized_record = normalize_uploaded_record(
+                raw_record,
+                dataset.source_type,
+                mapping_rules,
+            )
+            if normalized_record.timestamp is None:
+                raise UploadParseError(
+                    "A valid timestamp is required for every normalized record. "
+                    f"File '{uploaded_file.original_filename}', record {record_index} "
+                    "did not produce one. Review the dataset field mapping first."
+                )
             raw_event = find_existing_uploaded_raw_event(
                 session=session,
                 dataset_id=dataset.id,
