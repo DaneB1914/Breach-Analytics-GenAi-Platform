@@ -19,7 +19,8 @@ def list_alerts(
     alert_rule_name: str | None = None,
     incident_id: int | None = None,
 ) -> list[Alert]:
-    statement = select(Alert)
+    # Uploaded alerts are available only through their dataset-scoped routes.
+    statement = select(Alert).where(Alert.dataset_id.is_(None))
     statement = apply_alert_filters(
         statement=statement,
         severity=severity,
@@ -34,7 +35,12 @@ def list_alerts(
 
 @router.get("/alerts/{alert_id}", response_model=AlertResponse)
 def get_alert(alert_id: int, db: Session = Depends(get_db)) -> Alert:
-    alert = db.get(Alert, alert_id)
+    alert = db.scalar(
+        select(Alert).where(
+            Alert.id == alert_id,
+            Alert.dataset_id.is_(None),
+        )
+    )
 
     if alert is None:
         raise HTTPException(status_code=404, detail="Alert not found")

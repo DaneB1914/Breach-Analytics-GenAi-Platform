@@ -8,10 +8,12 @@ import type { LLMSummary } from "@/lib/types";
 
 export function SummaryPanel({
   incidentId,
-  initialSummary
+  initialSummary,
+  datasetId
 }: {
   incidentId: number;
   initialSummary: LLMSummary | null;
+  datasetId?: number;
 }) {
   const router = useRouter();
   const [summary, setSummary] = useState(initialSummary);
@@ -21,7 +23,7 @@ export function SummaryPanel({
   function handleGenerate() {
     setMessage(null);
     startTransition(async () => {
-      const result = await summarizeIncidentAction(incidentId);
+      const result = await summarizeIncidentAction(incidentId, datasetId);
       if (result.ok && result.summary) {
         setSummary(result.summary);
         setMessage({ type: "success", text: result.message });

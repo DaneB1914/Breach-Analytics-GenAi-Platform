@@ -3,14 +3,20 @@
 import { useState, useTransition } from "react";
 import { exportIncidentReportAction } from "@/app/actions";
 
-export function ReportExportButton({ incidentId }: { incidentId: number }) {
+export function ReportExportButton({
+  incidentId,
+  datasetId
+}: {
+  incidentId: number;
+  datasetId?: number;
+}) {
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   function handleExport() {
     setMessage(null);
     startTransition(async () => {
-      const result = await exportIncidentReportAction(incidentId);
+      const result = await exportIncidentReportAction(incidentId, datasetId);
       if (!result.ok || !result.content || !result.filename) {
         setMessage({ type: "error", text: result.message });
         return;

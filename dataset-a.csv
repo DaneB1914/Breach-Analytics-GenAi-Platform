@@ -1,0 +1,2 @@
+timestamp,event_type,username,asset,action,outcome,severity,mitre_technique_id,message
+2026-07-15T14:00:00Z,credential_access,dataset-a.user,LAPTOP-DATASET-A,alert,observed,high,T1003.001,Dataset A credential access activity

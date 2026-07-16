@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.routes.alerts import router as alerts_router
+from app.api.routes.dataset_investigations import router as dataset_investigations_router
 from app.api.routes.events import router as events_router
 from app.api.routes.health import router as health_router
 from app.api.routes.incidents import router as incidents_router
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
     app.include_router(alerts_router)
     app.include_router(incidents_router)
     app.include_router(uploads_router)
+    app.include_router(dataset_investigations_router)
     app.include_router(workflow_router)
 
     return app

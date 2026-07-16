@@ -88,8 +88,9 @@ def build_incident_group(alerts: list[Alert]) -> IncidentGroup:
     )
 
 
-def build_incident(group: IncidentGroup) -> Incident:
+def build_incident(group: IncidentGroup, dataset_id: int | None = None) -> Incident:
     return Incident(
+        dataset_id=dataset_id,
         title=group.title,
         severity=group.severity,
         status="open",

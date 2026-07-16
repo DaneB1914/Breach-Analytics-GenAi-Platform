@@ -53,6 +53,7 @@ def test_breach_analytics_columns_are_available() -> None:
         },
         "alerts": {
             "id",
+            "dataset_id",
             "normalized_event_id",
             "incident_id",
             "created_at",
@@ -69,6 +70,7 @@ def test_breach_analytics_columns_are_available() -> None:
         },
         "incidents": {
             "id",
+            "dataset_id",
             "created_at",
             "updated_at",
             "status",

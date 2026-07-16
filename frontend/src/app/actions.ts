@@ -5,6 +5,7 @@ import {
   normalizeUploadedDataset,
   runUploadedDatasetWorkflow,
   runWorkflow,
+  summarizeDatasetIncident,
   summarizeIncident,
   uploadDataset
 } from "@/lib/api";
@@ -22,9 +23,11 @@ export async function runWorkflowAction(step: "etl" | "detections" | "incidents"
   }
 }
 
-export async function summarizeIncidentAction(incidentId: number) {
+export async function summarizeIncidentAction(incidentId: number, datasetId?: number) {
   try {
-    const summary = await summarizeIncident(incidentId);
+    const summary = datasetId
+      ? await summarizeDatasetIncident(datasetId, incidentId)
+      : await summarizeIncident(incidentId);
     return { ok: true, summary, message: "Incident summary generated" };
   } catch (error) {
     return {
@@ -35,9 +38,9 @@ export async function summarizeIncidentAction(incidentId: number) {
   }
 }
 
-export async function exportIncidentReportAction(incidentId: number) {
+export async function exportIncidentReportAction(incidentId: number, datasetId?: number) {
   try {
-    const report = await getIncidentReport(incidentId);
+    const report = await getIncidentReport(incidentId, datasetId);
     return {
       ok: true,
       content: report.content,

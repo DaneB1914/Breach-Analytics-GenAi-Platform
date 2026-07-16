@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import distinct, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Incident, IncidentEvent, NormalizedEvent, RawEvent, UploadedDataset, UploadedFile
+from app.db.models import Incident, NormalizedEvent, RawEvent, UploadedDataset, UploadedFile
 from app.etl.schemas import ETLResult, NormalizedRecord
 from app.summaries.service import generate_and_store_summary, get_latest_summary
 from app.uploads.normalize import normalize_uploaded_record
@@ -136,7 +136,7 @@ def find_existing_uploaded_raw_event(
     raw_payload: dict,
 ) -> RawEvent | None:
     statement = select(RawEvent).where(
-        RawEvent.uploaded_dataset_id == dataset_id,
+        RawEvent.dataset_id == dataset_id,
         RawEvent.source_system == normalized_record.source_system,
         RawEvent.event_type == normalized_record.event_type,
         RawEvent.raw_payload == raw_payload,
@@ -155,7 +155,7 @@ def build_uploaded_raw_event(
     normalized_record: NormalizedRecord,
 ) -> RawEvent:
     return RawEvent(
-        uploaded_dataset_id=dataset_id,
+        dataset_id=dataset_id,
         event_timestamp=normalized_record.timestamp,
         source_system=normalized_record.source_system,
         event_type=normalized_record.event_type,
@@ -170,7 +170,7 @@ def build_uploaded_normalized_event(
 ) -> NormalizedEvent:
     return NormalizedEvent(
         raw_event_id=raw_event_id,
-        uploaded_dataset_id=dataset_id,
+        dataset_id=dataset_id,
         event_timestamp=normalized_record.timestamp,
         source_system=normalized_record.source_system,
         event_type=normalized_record.event_type,
@@ -194,10 +194,8 @@ def create_missing_summaries_for_dataset(
 
     incident_ids = list(
         session.scalars(
-            select(distinct(Incident.id))
-            .join(IncidentEvent, IncidentEvent.incident_id == Incident.id)
-            .join(NormalizedEvent, NormalizedEvent.id == IncidentEvent.normalized_event_id)
-            .where(NormalizedEvent.uploaded_dataset_id == dataset_id)
+            select(Incident.id)
+            .where(Incident.dataset_id == dataset_id)
         ).all()
     )
 
@@ -205,7 +203,12 @@ def create_missing_summaries_for_dataset(
     for incident_id in incident_ids:
         if get_latest_summary(session, incident_id) is not None:
             continue
-        if generate_and_store_summary(session, incident_id) is not None:
+        if generate_and_store_summary(
+            session,
+            incident_id,
+            dataset_id=dataset_id,
+            enforce_dataset_scope=True,
+        ) is not None:
             summaries_created += 1
 
     return UploadWorkflowSummaryResult(

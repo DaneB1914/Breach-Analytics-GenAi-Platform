@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   normalizeUploadedDatasetAction,
@@ -133,7 +134,9 @@ function UploadedDatasetsTable({
           {datasets.map((dataset) => (
             <tr key={dataset.id}>
               <td>
-                <strong>{dataset.name}</strong>
+                <Link className="link" href={`/uploads/${dataset.id}`}>
+                  {dataset.name}
+                </Link>
                 <div className="muted">{dataset.files[0]?.original_filename || "No file"}</div>
               </td>
               <td>{dataset.source_type}</td>
@@ -144,6 +147,9 @@ function UploadedDatasetsTable({
               <td>{formatDate(dataset.created_at)}</td>
               <td>
                 <div className="table-actions">
+                  <Link className="button secondary compact" href={`/uploads/${dataset.id}`}>
+                    Open
+                  </Link>
                   <button
                     className="button secondary compact"
                     disabled={disabled}

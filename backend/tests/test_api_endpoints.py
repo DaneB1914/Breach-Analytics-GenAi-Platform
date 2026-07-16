@@ -191,10 +191,22 @@ class FakeSession:
     def scalar(self, statement):
         entity = statement.column_descriptions[0]["entity"]
 
+        if entity is NormalizedEvent:
+            return self._item_by_statement_id(statement, self.events)
+        if entity is Alert:
+            return self._item_by_statement_id(statement, self.alerts)
+        if entity is Incident:
+            return self._item_by_statement_id(statement, self.incidents)
+
         if entity is LLMSummary:
             return sorted(self.summaries, key=lambda summary: (summary.created_at, summary.id))[-1]
 
         return None
+
+    @staticmethod
+    def _item_by_statement_id(statement, items: dict[int, Any]):
+        requested_ids = [value for value in statement.compile().params.values() if isinstance(value, int)]
+        return items.get(requested_ids[0]) if requested_ids else None
 
     def begin(self):
         return nullcontext()

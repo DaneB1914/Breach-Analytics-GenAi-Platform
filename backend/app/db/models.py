@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func, text
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, synonym
 
 from app.db.base import Base
 
@@ -20,6 +20,9 @@ class RawEvent(Base):
         ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
         index=True,
     )
+    # Keep the original database column name while exposing one consistent
+    # dataset_id attribute across the investigation models.
+    dataset_id: Mapped[int | None] = synonym("uploaded_dataset_id")
     ingested_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -51,6 +54,7 @@ class NormalizedEvent(Base):
         ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
         index=True,
     )
+    dataset_id: Mapped[int | None] = synonym("uploaded_dataset_id")
     normalized_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -84,6 +88,10 @@ class Alert(Base):
     __tablename__ = "alerts"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
+        index=True,
+    )
     normalized_event_id: Mapped[int] = mapped_column(
         ForeignKey("normalized_events.id", ondelete="CASCADE"),
         index=True,
@@ -114,6 +122,7 @@ class Alert(Base):
 
     normalized_event: Mapped[NormalizedEvent] = relationship(back_populates="alerts")
     incident: Mapped[Incident | None] = relationship(back_populates="alerts")
+    dataset: Mapped[UploadedDataset | None] = relationship(back_populates="alerts")
 
 
 class Incident(Base):
@@ -122,6 +131,10 @@ class Incident(Base):
     __tablename__ = "incidents"
 
     id: Mapped[int] = mapped_column(primary_key=True)
+    dataset_id: Mapped[int | None] = mapped_column(
+        ForeignKey("uploaded_datasets.id", ondelete="SET NULL"),
+        index=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -156,6 +169,7 @@ class Incident(Base):
         back_populates="incident",
         cascade="all, delete-orphan",
     )
+    dataset: Mapped[UploadedDataset | None] = relationship(back_populates="incidents")
 
 
 class IncidentEvent(Base):
@@ -265,6 +279,8 @@ class UploadedDataset(Base):
     )
     raw_events: Mapped[list[RawEvent]] = relationship(back_populates="uploaded_dataset")
     normalized_events: Mapped[list[NormalizedEvent]] = relationship(back_populates="uploaded_dataset")
+    alerts: Mapped[list[Alert]] = relationship(back_populates="dataset")
+    incidents: Mapped[list[Incident]] = relationship(back_populates="dataset")
 
 
 class UploadedFile(Base):

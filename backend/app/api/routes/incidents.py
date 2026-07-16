@@ -13,7 +13,7 @@ from app.api.schemas import (
     IncidentResponse,
     LLMSummaryResponse,
 )
-from app.db.models import Incident, IncidentEvent
+from app.db.models import Alert, Incident, IncidentEvent
 from app.reports.service import generate_incident_markdown_report
 from app.summaries.service import generate_and_store_summary, get_latest_summary
 
@@ -31,7 +31,11 @@ def list_incidents(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> list[Incident]:
-    statement = select(Incident)
+    # Global incident routes represent only the built-in demo investigation.
+    statement = select(Incident).where(
+        Incident.dataset_id.is_(None),
+        ~Incident.alerts.any(Alert.dataset_id.is_not(None)),
+    )
     statement = apply_incident_filters(
         statement=statement,
         severity=severity,
@@ -47,13 +51,17 @@ def list_incidents(
 
 @router.get("/incidents/{incident_id}", response_model=IncidentDetailResponse)
 def get_incident(incident_id: int, db: Session = Depends(get_db)) -> IncidentDetailResponse:
-    incident = db.get(
-        Incident,
-        incident_id,
-        options=[
+    incident = db.scalar(
+        select(Incident)
+        .where(
+            Incident.id == incident_id,
+            Incident.dataset_id.is_(None),
+            ~Incident.alerts.any(Alert.dataset_id.is_not(None)),
+        )
+        .options(
             selectinload(Incident.alerts),
             selectinload(Incident.event_links).selectinload(IncidentEvent.normalized_event),
-        ],
+        )
     )
 
     if incident is None:
@@ -66,7 +74,12 @@ def get_incident(incident_id: int, db: Session = Depends(get_db)) -> IncidentDet
 def summarize_incident(incident_id: int, db: Session = Depends(get_db)) -> LLMSummaryResponse:
     # Summary generation is one transaction: gather evidence, generate, and store.
     with db.begin():
-        summary = generate_and_store_summary(db, incident_id)
+        summary = generate_and_store_summary(
+            db,
+            incident_id,
+            dataset_id=None,
+            enforce_dataset_scope=True,
+        )
 
     if summary is None:
         raise HTTPException(status_code=404, detail="Incident not found")
@@ -76,7 +89,13 @@ def summarize_incident(incident_id: int, db: Session = Depends(get_db)) -> LLMSu
 
 @router.get("/incidents/{incident_id}/summary", response_model=LLMSummaryResponse)
 def get_incident_summary(incident_id: int, db: Session = Depends(get_db)) -> LLMSummaryResponse:
-    incident = db.get(Incident, incident_id)
+    incident = db.scalar(
+        select(Incident).where(
+            Incident.id == incident_id,
+            Incident.dataset_id.is_(None),
+            ~Incident.alerts.any(Alert.dataset_id.is_not(None)),
+        )
+    )
     if incident is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
@@ -89,7 +108,12 @@ def get_incident_summary(incident_id: int, db: Session = Depends(get_db)) -> LLM
 
 @router.get("/incidents/{incident_id}/report")
 def export_incident_report(incident_id: int, db: Session = Depends(get_db)) -> Response:
-    report = generate_incident_markdown_report(db, incident_id)
+    report = generate_incident_markdown_report(
+        db,
+        incident_id,
+        dataset_id=None,
+        enforce_dataset_scope=True,
+    )
     if report is None:
         raise HTTPException(status_code=404, detail="Incident not found")
 
@@ -124,14 +148,19 @@ def apply_incident_filters(
 
 
 def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse:
+    related_alerts = [
+        alert for alert in incident.alerts if alert.dataset_id == incident.dataset_id
+    ]
     related_events = [
         event_link.normalized_event
         for event_link in incident.event_links
         if event_link.normalized_event is not None
+        and event_link.normalized_event.dataset_id == incident.dataset_id
     ]
 
     return IncidentDetailResponse(
         id=incident.id,
+        dataset_id=incident.dataset_id,
         created_at=incident.created_at,
         updated_at=incident.updated_at,
         status=incident.status,
@@ -143,6 +172,6 @@ def build_incident_detail_response(incident: Incident) -> IncidentDetailResponse
         affected_assets=incident.affected_assets,
         first_seen=incident.first_seen,
         last_seen=incident.last_seen,
-        alerts=[AlertResponse.model_validate(alert) for alert in incident.alerts],
+        alerts=[AlertResponse.model_validate(alert) for alert in related_alerts],
         related_events=[EventResponse.model_validate(event) for event in related_events],
     )

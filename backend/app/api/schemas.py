@@ -9,6 +9,7 @@ class EventResponse(BaseModel):
 
     id: int
     raw_event_id: int
+    dataset_id: int | None = None
     uploaded_dataset_id: int | None = None
     normalized_at: datetime | None = None
     event_timestamp: datetime | None = None
@@ -29,6 +30,7 @@ class AlertResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    dataset_id: int | None = None
     normalized_event_id: int
     incident_id: int | None = None
     created_at: datetime | None = None
@@ -48,6 +50,7 @@ class IncidentResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    dataset_id: int | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
     status: str

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from app.db.models import Alert, Incident, IncidentEvent
+from app.db.models import Alert, Incident, IncidentEvent, NormalizedEvent
 from app.incidents.correlation import build_incident, group_related_alerts
 from app.incidents.engine import assign_alerts_to_incident, run_incident_correlation
 
@@ -142,6 +142,15 @@ class FakeIncidentSession:
         entity = statement.column_descriptions[0]["entity"]
         if entity is Alert:
             return FakeScalarResult(self.alerts)
+        if entity is NormalizedEvent:
+            event_ids = sorted(
+                {
+                    event_id
+                    for alert_item in self.alerts
+                    for event_id in alert_item.related_event_ids
+                }
+            )
+            return FakeScalarResult(event_ids)
         return FakeScalarResult([])
 
     def add(self, item: Any) -> None:

@@ -23,7 +23,8 @@ def list_events(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
 ) -> list[NormalizedEvent]:
-    statement = select(NormalizedEvent)
+    # Global event browsing is reserved for the built-in demo workflow.
+    statement = select(NormalizedEvent).where(NormalizedEvent.dataset_id.is_(None))
     statement = apply_event_filters(
         statement=statement,
         severity=severity,
@@ -43,7 +44,12 @@ def list_events(
 
 @router.get("/events/{event_id}", response_model=EventResponse)
 def get_event(event_id: int, db: Session = Depends(get_db)) -> NormalizedEvent:
-    event = db.get(NormalizedEvent, event_id)
+    event = db.scalar(
+        select(NormalizedEvent).where(
+            NormalizedEvent.id == event_id,
+            NormalizedEvent.dataset_id.is_(None),
+        )
+    )
 
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")

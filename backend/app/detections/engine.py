@@ -13,13 +13,15 @@ def run_detections(
     dataset_id: int | None = None,
     sample_only: bool = False,
 ) -> DetectionResult:
-    """Load normalized events, apply rules, and insert new alerts."""
+    """Apply rules to one uploaded dataset or to nullable demo events."""
 
     statement = select(NormalizedEvent)
     if dataset_id is not None:
-        statement = statement.where(NormalizedEvent.uploaded_dataset_id == dataset_id)
-    elif sample_only:
-        statement = statement.where(NormalizedEvent.uploaded_dataset_id.is_(None))
+        statement = statement.where(NormalizedEvent.dataset_id == dataset_id)
+    else:
+        # A missing dataset ID always means the built-in demo scope. This keeps
+        # CLI and API runs from accidentally analyzing every analyst upload.
+        statement = statement.where(NormalizedEvent.dataset_id.is_(None))
 
     events = list(
         session.scalars(
@@ -35,11 +37,11 @@ def run_detections(
     alerts_skipped = 0
 
     for candidate in candidates:
-        if alert_already_exists(session, candidate):
+        if alert_already_exists(session, candidate, dataset_id):
             alerts_skipped += 1
             continue
 
-        session.add(build_alert(candidate))
+        session.add(build_alert(candidate, dataset_id))
         alerts_created += 1
 
     # The app uses autoflush=False. Flush here so a follow-up workflow step in
@@ -54,10 +56,18 @@ def run_detections(
     )
 
 
-def alert_already_exists(session: Session, candidate: AlertCandidate) -> bool:
-    existing_alerts = session.scalars(
-        select(Alert).where(Alert.alert_rule_name == candidate.rule_name)
-    ).all()
+def alert_already_exists(
+    session: Session,
+    candidate: AlertCandidate,
+    dataset_id: int | None,
+) -> bool:
+    statement = select(Alert).where(Alert.alert_rule_name == candidate.rule_name)
+    if dataset_id is None:
+        statement = statement.where(Alert.dataset_id.is_(None))
+    else:
+        statement = statement.where(Alert.dataset_id == dataset_id)
+
+    existing_alerts = session.scalars(statement).all()
     candidate_event_ids = sorted(candidate.related_event_ids)
 
     return any(
@@ -66,8 +76,9 @@ def alert_already_exists(session: Session, candidate: AlertCandidate) -> bool:
     )
 
 
-def build_alert(candidate: AlertCandidate) -> Alert:
+def build_alert(candidate: AlertCandidate, dataset_id: int | None = None) -> Alert:
     return Alert(
+        dataset_id=dataset_id,
         normalized_event_id=candidate.primary_event_id,
         alert_rule_name=candidate.rule_name,
         severity=candidate.severity,

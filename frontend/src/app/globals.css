@@ -309,6 +309,39 @@ h3 {
   color: #991b1b;
 }
 
+.message.warning {
+  border: 1px solid #facc15;
+  background: #fefce8;
+  color: #854d0e;
+}
+
+.active-dataset {
+  width: fit-content;
+  border-left: 4px solid var(--accent);
+  background: var(--surface-muted);
+  color: #334155;
+  padding: 9px 12px;
+}
+
+.dataset-workflow-actions {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.dataset-workflow-actions .message {
+  flex-basis: 100%;
+  margin-top: 2px;
+}
+
+.empty-state {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 18px;
+}
+
 .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);

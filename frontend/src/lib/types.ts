@@ -3,6 +3,7 @@ export type Severity = "critical" | "high" | "medium" | "low" | string | null;
 export type EventRecord = {
   id: number;
   raw_event_id: number;
+  dataset_id: number | null;
   uploaded_dataset_id: number | null;
   normalized_at: string | null;
   event_timestamp: string | null;
@@ -21,6 +22,7 @@ export type EventRecord = {
 
 export type AlertRecord = {
   id: number;
+  dataset_id: number | null;
   normalized_event_id: number;
   incident_id: number | null;
   created_at: string | null;
@@ -38,6 +40,7 @@ export type AlertRecord = {
 
 export type IncidentRecord = {
   id: number;
+  dataset_id: number | null;
   created_at: string | null;
   updated_at: string | null;
   status: string;

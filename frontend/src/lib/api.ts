@@ -42,14 +42,44 @@ export async function getUploads(): Promise<UploadedDatasetRecord[]> {
   return fetchApi<UploadedDatasetRecord[]>("/uploads");
 }
 
+export async function getUpload(datasetId: number): Promise<UploadedDatasetRecord> {
+  return fetchApi<UploadedDatasetRecord>(`/uploads/${datasetId}`);
+}
+
+export async function getDatasetEvents(datasetId: number, limit = 500): Promise<EventRecord[]> {
+  return fetchApi<EventRecord[]>(`/uploads/${datasetId}/events?limit=${limit}`);
+}
+
+export async function getDatasetAlerts(datasetId: number, limit = 500): Promise<AlertRecord[]> {
+  return fetchApi<AlertRecord[]>(`/uploads/${datasetId}/alerts?limit=${limit}`);
+}
+
+export async function getDatasetIncidents(
+  datasetId: number,
+  limit = 500
+): Promise<IncidentRecord[]> {
+  return fetchApi<IncidentRecord[]>(`/uploads/${datasetId}/incidents?limit=${limit}`);
+}
+
 export async function getIncident(incidentId: number): Promise<IncidentDetail> {
   return fetchApi<IncidentDetail>(`/incidents/${incidentId}`);
 }
 
-export async function getIncidentReport(
+export async function getDatasetIncident(
+  datasetId: number,
   incidentId: number
+): Promise<IncidentDetail> {
+  return fetchApi<IncidentDetail>(`/uploads/${datasetId}/incidents/${incidentId}`);
+}
+
+export async function getIncidentReport(
+  incidentId: number,
+  datasetId?: number
 ): Promise<{ content: string; filename: string }> {
-  const response = await fetch(`${API_BASE_URL}/incidents/${incidentId}/report`, {
+  const path = datasetId
+    ? `/uploads/${datasetId}/incidents/${incidentId}/report`
+    : `/incidents/${incidentId}/report`;
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     cache: "no-store"
   });
 
@@ -71,9 +101,32 @@ export async function summarizeIncident(incidentId: number): Promise<LLMSummary>
   return fetchApi<LLMSummary>(`/incidents/${incidentId}/summarize`, { method: "POST" });
 }
 
+export async function summarizeDatasetIncident(
+  datasetId: number,
+  incidentId: number
+): Promise<LLMSummary> {
+  return fetchApi<LLMSummary>(`/uploads/${datasetId}/incidents/${incidentId}/summarize`, {
+    method: "POST"
+  });
+}
+
 export async function getIncidentSummary(incidentId: number): Promise<LLMSummary | null> {
   try {
     return await fetchApi<LLMSummary>(`/incidents/${incidentId}/summary`);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function getDatasetIncidentSummary(
+  datasetId: number,
+  incidentId: number
+): Promise<LLMSummary | null> {
+  try {
+    return await fetchApi<LLMSummary>(`/uploads/${datasetId}/incidents/${incidentId}/summary`);
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
       return null;

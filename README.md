@@ -86,6 +86,7 @@ More detail: [docs/architecture.md](docs/architecture.md)
 - Raw event preservation for auditability
 - Rule-based detection engine for suspicious breach activity
 - Incident correlation engine that groups related alerts and evidence
+- Dataset-scoped investigations that isolate uploaded events, alerts, incidents, summaries, and reports
 - REST API for events, alerts, incidents, workflow execution, and summaries
 - Optional LLM-style summary workflow with deterministic mock fallback
 - Downloadable Markdown incident investigation reports
@@ -190,6 +191,23 @@ Uploaded files are stored in the local `uploads/` directory, which is ignored by
 
 Generic normalization maps common field names such as `timestamp`, `username`, `source_ip`, `destination_ip`, `asset`, `action`, `outcome`, `severity`, `mitre_technique_id`, and `message` into the existing event schema. Missing fields are allowed and become null or sensible defaults.
 
+### Dataset Isolation
+
+The platform treats each analyst upload as an independent investigation. Uploaded raw events, normalized events, alerts, and incidents carry the owning `dataset_id`. Detection rules query only that dataset, incident correlation considers only alerts from that dataset, and evidence links are validated before summaries or reports are generated.
+
+The built-in sample workflow remains separate by using nullable dataset ownership:
+
+- `dataset_id = null` identifies repository sample/demo records.
+- A numeric `dataset_id` identifies one analyst-uploaded investigation.
+- Global `/events`, `/alerts`, `/incidents`, and `/workflow/*` endpoints operate on demo records only.
+- `/uploads/{dataset_id}/*` endpoints operate only on the selected uploaded dataset.
+
+This design preserves existing sample data without creating a synthetic upload record and prevents one analyst dataset from appearing in another dataset's events, alerts, incidents, summaries, or reports.
+
+Analyst workflow:
+
+**Upload -> Normalize -> Analyze -> Review Incidents -> Summarize -> Export Report**
+
 ### Upload API Test Commands
 
 PowerShell 7 example using an existing sample JSON file:
@@ -210,6 +228,9 @@ Invoke-RestMethod http://127.0.0.1:8000/uploads
 Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId
 Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetId/normalize
 Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetId/run-workflow
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId/events
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId/alerts
+Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetId/incidents
 ```
 
 If your PowerShell version does not support `-Form`, use `curl.exe` from PowerShell:
@@ -222,23 +243,93 @@ curl.exe -X POST http://127.0.0.1:8000/uploads `
   -F "file=@data/auth_logs.json"
 ```
 
+### Verify Two Isolated Datasets
+
+Run these commands in PowerShell 7 after Docker is running and migrations are current. Each file creates a different endpoint credential-access investigation.
+
+```powershell
+@'
+timestamp,event_type,username,asset,action,outcome,severity,mitre_technique_id,message
+2026-07-15T14:00:00Z,credential_access,dataset-a.user,LAPTOP-DATASET-A,alert,observed,high,T1003.001,Dataset A credential access activity
+'@ | Set-Content -Encoding utf8NoBOM .\dataset-a.csv
+
+@'
+timestamp,event_type,username,asset,action,outcome,severity,mitre_technique_id,message
+2026-07-15T15:00:00Z,credential_access,dataset-b.user,LAPTOP-DATASET-B,alert,observed,high,T1003.001,Dataset B credential access activity
+'@ | Set-Content -Encoding utf8NoBOM .\dataset-b.csv
+
+$datasetA = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/uploads -Form @{
+  name = "Isolation Test A"
+  source_type = "endpoint"
+  description = "Dataset A must remain isolated"
+  file = Get-Item .\dataset-a.csv
+}
+
+$datasetB = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/uploads -Form @{
+  name = "Isolation Test B"
+  source_type = "endpoint"
+  description = "Dataset B must remain isolated"
+  file = Get-Item .\dataset-b.csv
+}
+
+$datasetAId = $datasetA.id
+$datasetBId = $datasetB.id
+
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetAId/run-workflow
+Invoke-RestMethod -Method Post http://127.0.0.1:8000/uploads/$datasetBId/run-workflow
+
+$datasetAEvents = @(Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetAId/events)
+$datasetBEvents = @(Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetBId/events)
+$datasetAIncidents = @(Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetAId/incidents)
+$datasetBIncidents = @(Invoke-RestMethod http://127.0.0.1:8000/uploads/$datasetBId/incidents)
+
+$datasetAEvents | Select-Object id, dataset_id, username, asset
+$datasetBEvents | Select-Object id, dataset_id, username, asset
+$datasetAIncidents | Select-Object id, dataset_id, affected_user, severity
+$datasetBIncidents | Select-Object id, dataset_id, affected_user, severity
+
+if ($datasetAEvents.username -contains "dataset-b.user") { throw "Dataset B leaked into Dataset A" }
+if ($datasetBEvents.username -contains "dataset-a.user") { throw "Dataset A leaked into Dataset B" }
+
+$incidentAId = $datasetAIncidents[0].id
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/uploads/$datasetAId/incidents/$incidentAId/report `
+  -OutFile .\dataset-a-incident-report.md
+
+if (Select-String -Path .\dataset-a-incident-report.md -Pattern "dataset-b.user" -Quiet) {
+  throw "Dataset B evidence leaked into Dataset A report"
+}
+
+Get-Content .\dataset-a-incident-report.md
+```
+
 ## API Endpoints
 
-Key endpoints:
+Demo/global endpoints operate only on built-in sample records:
 
 - `GET /health`
 - `GET /events`
 - `GET /alerts`
 - `GET /incidents`
 - `POST /workflow/run-all`
+- `POST /incidents/{incident_id}/summarize`
+- `GET /incidents/{incident_id}/summary`
+- `GET /incidents/{incident_id}/report`
+
+Uploaded dataset endpoints enforce the selected investigation scope:
+
 - `POST /uploads`
 - `GET /uploads`
 - `GET /uploads/{dataset_id}`
 - `POST /uploads/{dataset_id}/normalize`
 - `POST /uploads/{dataset_id}/run-workflow`
-- `POST /incidents/{incident_id}/summarize`
-- `GET /incidents/{incident_id}/summary`
-- `GET /incidents/{incident_id}/report`
+- `GET /uploads/{dataset_id}/events`
+- `GET /uploads/{dataset_id}/alerts`
+- `GET /uploads/{dataset_id}/incidents`
+- `GET /uploads/{dataset_id}/incidents/{incident_id}`
+- `POST /uploads/{dataset_id}/incidents/{incident_id}/summarize`
+- `GET /uploads/{dataset_id}/incidents/{incident_id}/summary`
+- `GET /uploads/{dataset_id}/incidents/{incident_id}/report`
 
 Interactive API documentation is available at:
 
@@ -271,12 +362,22 @@ The incident detail page includes an **Export Report** button. It downloads a Ma
 
 The report still exports when no LLM summary exists; it uses incident and evidence data with clear fallback text.
 
+For an uploaded investigation, open the dataset from the **Upload Logs** table, select an incident, and use **Export Report**. The dataset-aware route verifies that the incident and all included evidence belong to the active dataset.
+
 Download a report through PowerShell:
 
 ```powershell
 Invoke-WebRequest `
   -Uri http://127.0.0.1:8000/incidents/1/report `
   -OutFile .\incident-1-report.md
+```
+
+Dataset-scoped report example:
+
+```powershell
+Invoke-WebRequest `
+  -Uri http://127.0.0.1:8000/uploads/$datasetId/incidents/$incidentId/report `
+  -OutFile .\dataset-$datasetId-incident-$incidentId-report.md
 ```
 
 ## Screenshots
@@ -372,6 +473,7 @@ docker compose exec backend alembic current
 - The included telemetry is realistic but synthetic; no real personal data, customer data, or production logs are used.
 - Uploaded files are stored locally for development review and should not be treated as production evidence storage.
 - The generic upload normalizer handles common field names but cannot fully understand every vendor-specific schema yet.
+- Dataset deletion is not exposed yet; uploaded investigation data remains in local PostgreSQL until the development environment is reset.
 - Detection rules are deterministic examples intended for portfolio demonstration, not a replacement for a production SIEM or managed detection platform.
 - The LLM workflow defaults to deterministic mock mode so the project runs reliably without paid API access or external network dependencies.
 - Incident reports currently export as Markdown only; PDF rendering remains a future improvement.

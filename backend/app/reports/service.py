@@ -12,10 +12,17 @@ def generate_incident_markdown_report(
     session: Session,
     incident_id: int,
     generated_at: datetime | None = None,
+    dataset_id: int | None = None,
+    enforce_dataset_scope: bool = False,
 ) -> str | None:
     """Load incident evidence and return a Markdown report."""
 
-    evidence = load_incident_evidence(session, incident_id)
+    evidence = load_incident_evidence(
+        session,
+        incident_id,
+        dataset_id=dataset_id,
+        enforce_dataset_scope=enforce_dataset_scope,
+    )
     if evidence is None:
         return None
 
